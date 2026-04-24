@@ -9,15 +9,6 @@ export default function PostPreview({ post }) {
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
-      {/* Repost Indicator */}
-      {post.type === 'repost' && (
-        <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
-          <Share2 size={12} className="text-amber-600" />
-          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-            Reposted from <span className="underline">{originalName}</span>
-          </span>
-        </div>
-      )}
 
       {/* Author Header */}
       <div className="p-4 flex items-center justify-between border-b border-slate-50">
@@ -47,37 +38,69 @@ export default function PostPreview({ post }) {
 
       {/* Post Content Area */}
       <div className="p-5 space-y-4">
-        {/* Caption */}
+        {/* Caption (Main/Reposter Caption) */}
         {post.content ? (
           <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
             {post.content}
           </p>
         ) : (
-          <p className="text-sm text-slate-300 italic">Tidak ada caption.</p>
+          post.type !== 'repost' && <p className="text-sm text-slate-300 italic">Tidak ada caption.</p>
         )}
 
-        {/* Media / Image - HARUS TAMPIL JIKA ADA */}
-        {post.image ? (
+        {/* Nested Quote Tweet (Original Post) */}
+        {post.type === 'repost' && (
+          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm mt-3">
+            {/* Original Author Header */}
+            <div className="p-3 bg-slate-50 flex items-center gap-3 border-b border-slate-100">
+              <div className="w-6 h-6 rounded-full overflow-hidden bg-primary-100 flex items-center justify-center border border-slate-200 flex-shrink-0">
+                {post.originalAuthor?.avatar ? (
+                  <img src={post.originalAuthor.avatar} alt={originalName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[9px] font-bold text-primary-600">{originalName.slice(0, 2).toUpperCase()}</span>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-800">{originalName}</p>
+              </div>
+            </div>
+            
+            {/* Original Caption */}
+            {post.originalContent && (
+              <div className="p-3">
+                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{post.originalContent}</p>
+              </div>
+            )}
+            
+            {/* Original Media */}
+            {post.image && (
+              <div className="relative bg-slate-50 border-t border-slate-100">
+                <img 
+                  src={post.image} 
+                  alt="Original content" 
+                  className="w-full h-auto max-h-[400px] object-contain mx-auto"
+                  loading="lazy"
+                />
+              </div>
+            )}
+            {!post.originalContent && !post.image && (
+               <div className="p-4 text-center">
+                 <p className="text-xs text-slate-400 italic">Data original post tidak ditemukan atau telah dihapus.</p>
+               </div>
+            )}
+          </div>
+        )}
+
+        {/* Media / Image (For Original Posts) */}
+        {post.type !== 'repost' && post.image && (
           <div className="relative rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shadow-inner group">
             <img 
               src={post.image} 
               alt="Post content" 
               className="w-full h-auto max-h-[500px] object-contain mx-auto transition-transform duration-500 group-hover:scale-[1.01]"
               loading="lazy"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = `
-                  <div class="py-16 flex flex-col items-center gap-2 text-slate-400">
-                    <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-                    </div>
-                    <span class="text-xs font-medium">Gambar tidak dapat dimuat</span>
-                  </div>
-                `;
-              }}
             />
           </div>
-        ) : null}
+        )}
       </div>
 
       {/* Stats Footer */}

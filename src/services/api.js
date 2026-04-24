@@ -92,8 +92,10 @@ export const authApi = {
 // ═════════════════════════════════════════════════════════════════════════════
 export const postsApi = {
   /** Ambil semua post untuk moderasi */
-  getAll: () =>
-    http.get('/api/v1/admin/posts'),
+  getAll: (limit = 10, skip = 0) => {
+    const params = new URLSearchParams({ limit, skip })
+    return http.get(`/api/v1/admin/posts?${params}`)
+  },
 
   /** Takedown post */
   takedown: (id) =>

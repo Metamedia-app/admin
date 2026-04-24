@@ -12,7 +12,7 @@ import { useToast } from '../context/ToastContext'
 import { postsApi } from '../services/api'
 
 // ─── Normalizer: Mendukung Repost & Original Post ─────────────────────────────
-function normalizePost(p) {
+function normalizePost(p, allRawPosts = []) {
   const isTakenDown =
     p.is_taken_down === true ||
     p.isTakenDown === true ||
@@ -23,9 +23,22 @@ function normalizePost(p) {
   const authorRaw = p.author_id || p.author || {}
   const authorName = authorRaw.nama || 'Unknown'
 
-  // Jika ini adalah REPOST, kita ambil data dari original_post_id
-  const isRepost = p.type === 'repost' && p.original_post_id
-  const source = isRepost ? p.original_post_id : p
+  // Jika ini adalah REPOST, kita harus mendapatkan data original post.
+  // API bisa mengembalikan objek lengkap, atau hanya string ID.
+  let isRepost = p.type === 'repost'
+  let originalPostObj = p.original_post_id
+  
+  if (isRepost && typeof p.original_post_id === 'string') {
+    // Cari original post di dalam array raw posts yang kita dapatkan
+    const found = allRawPosts.find(x => (x._id || x.id) === p.original_post_id)
+    if (found) {
+      originalPostObj = found
+    }
+  }
+
+  // Jika kita berhasil mendapatkan original post object
+  const hasOriginalData = originalPostObj && typeof originalPostObj === 'object'
+  const source = hasOriginalData ? originalPostObj : p
   
   // Ambil media dari source (bisa p atau original_post_id)
   const mediaArr = Array.isArray(source.media) ? source.media : []
@@ -33,17 +46,20 @@ function normalizePost(p) {
   
   // Caption untuk judul & konten
   const originalCaption = source.caption || ''
+  const repostCaption = p.caption || ''
+  
   const displayTitle = isRepost 
-    ? `Repost: ${originalCaption || 'Content'}` 
+    ? `Repost: ${originalCaption || (hasOriginalData ? 'Tanpa Caption' : 'Data Asli Tidak Ditemukan')}` 
     : (p.caption || 'Original post')
 
   // Definisikan kembali originalAuthor
-  const originalAuthor = isRepost ? (source.author_id || source.author || {}) : null
+  const originalAuthor = hasOriginalData ? (source.author_id || source.author || {}) : null
 
   return {
     id:      p._id || p.id,
     title:   displayTitle,
-    content: originalCaption,
+    content: isRepost ? repostCaption : originalCaption,
+    originalContent: originalCaption,
     status:  isTakenDown ? 'removed' : 'published',
     image:   image, // Media dari source (original post jika repost)
     author: {
@@ -98,11 +114,17 @@ export default function PostsPage() {
 
     try {
       const skip = (page - 1) * LIMIT
-      // Gunakan search agar tetap bisa menggunakan LIMIT dan SKIP meskipun query kosong
-      const data = await postsApi.search(search.trim(), LIMIT, skip)
+      let data;
+      
+      // Jika ada teks pencarian, gunakan endpoint search. Jika kosong, gunakan endpoint getAll.
+      if (search.trim()) {
+        data = await postsApi.search(search.trim(), LIMIT, skip)
+      } else {
+        data = await postsApi.getAll(LIMIT, skip)
+      }
       
       const raw  = extractArray(data)
-      setPosts(raw.map(normalizePost))
+      setPosts(raw.map(p => normalizePost(p, raw)))
       setHasMore(raw.length === LIMIT)
     } catch (err) {
       setError(err.message)
@@ -152,7 +174,13 @@ export default function PostsPage() {
       p.title.toLowerCase().includes(s) ||
       p.author?.name.toLowerCase().includes(s)
     
-    const matchFilter = filter === 'all' || p.status === filter
+    // Logic filter gabungan: status dan type
+    let matchFilter = true
+    if (filter === 'published') matchFilter = p.status === 'published'
+    if (filter === 'removed') matchFilter = p.status === 'removed'
+    if (filter === 'original') matchFilter = p.type === 'original'
+    if (filter === 'repost') matchFilter = p.type === 'repost'
+
     return matchSearch && matchFilter
   })
 
@@ -245,18 +273,24 @@ export default function PostsPage() {
                 className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
               />
             </div>
-            <div className="flex gap-1.5">
-              {['all', 'published', 'removed'].map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${
-                    filter === f ? 'bg-primary-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {f === 'all' ? 'Semua' : f === 'published' ? 'Aktif' : 'Takedown'}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-1.5">
+              {['all', 'published', 'removed', 'original', 'repost'].map(f => {
+                const labels = {
+                  all: 'Semua', published: 'Aktif', removed: 'Takedown',
+                  original: 'Post', repost: 'Repost'
+                }
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${
+                      filter === f ? 'bg-primary-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {labels[f]}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
