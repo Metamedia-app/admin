@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BookOpen, Plus, X, Hash, CalendarDays, User2, RefreshCw } from 'lucide-react'
-import Card    from '../components/Card'
-import Table   from '../components/Table'
-import Button  from '../components/Button'
-import Modal   from '../components/Modal'
+import Card from '../components/Card'
+import Table from '../components/Table'
+import Button from '../components/Button'
+import Modal from '../components/Modal'
 import { useToast } from '../context/ToastContext'
 import { subjectsApi } from '../services/api'
 
@@ -21,9 +21,9 @@ const INITIAL_FORM = { code: '', name: '', academic_year: '', lecturer_name: '' 
 export default function SubjectsPage() {
   const toast = useToast()
   const [subjects, setSubjects] = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm]           = useState(INITIAL_FORM)
+  const [form, setForm] = useState(INITIAL_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 

@@ -69,8 +69,8 @@ async function request(endpoint, options = {}) {
 
 // ─── HTTP shortcuts ───────────────────────────────────────────────────────────
 const http = {
-  get:   (ep, opts = {}) => request(ep, { method: 'GET', ...opts }),
-  post:  (ep, body, opts = {}) => request(ep, { method: 'POST', body: JSON.stringify(body ?? {}), ...opts }),
+  get: (ep, opts = {}) => request(ep, { method: 'GET', ...opts }),
+  post: (ep, body, opts = {}) => request(ep, { method: 'POST', body: JSON.stringify(body ?? {}), ...opts }),
   patch: (ep, body, opts = {}) => request(ep, { method: 'PATCH', body: JSON.stringify(body ?? {}), ...opts }),
 }
 
@@ -142,7 +142,7 @@ export const reportsApi = {
     const params = new URLSearchParams({ status, limit, skip })
     return http.get(`/api/v1/admin/reports?${params}`)
   },
-  updateStatus: (id, status) => 
+  updateStatus: (id, status) =>
     http.patch(`/api/v1/admin/reports/${id}/status`, { status }),
 }
 
