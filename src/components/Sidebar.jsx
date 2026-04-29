@@ -6,13 +6,20 @@ import {
   FileText,
   X,
   ShieldCheck,
+  BookOpen,
+  MessagesSquare,
 } from 'lucide-react'
 
-const navItems = [
+const mainNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/users',     icon: Users,           label: 'Users' },
   { to: '/reports',   icon: FileWarning,     label: 'Reports' },
   { to: '/posts',     icon: FileText,        label: 'Posts' },
+]
+
+const matkulNavItems = [
+  { to: '/subjects',  icon: BookOpen,        label: 'Mata Kuliah' },
+  { to: '/groups',    icon: MessagesSquare,  label: 'Grup Chat' },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -47,7 +54,7 @@ export default function Sidebar({ isOpen, onClose }) {
         <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
           Main Menu
         </p>
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {mainNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -67,6 +74,35 @@ export default function Sidebar({ isOpen, onClose }) {
                 {label}
                 {isActive && (
                   <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500" />
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
+
+        <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3 mt-5">
+          Grup &amp; Matkul
+        </p>
+        {matkulNavItems.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150
+               ${isActive
+                 ? 'bg-violet-50 text-violet-700 border border-violet-100 shadow-sm'
+                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+               }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <span className={`${isActive ? 'text-violet-600' : 'text-slate-400'}`}>
+                  <Icon size={18} />
+                </span>
+                {label}
+                {isActive && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-500" />
                 )}
               </>
             )}

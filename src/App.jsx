@@ -6,6 +6,8 @@ import DashboardPage  from './pages/DashboardPage'
 import UsersPage      from './pages/UsersPage'
 import ReportsPage    from './pages/ReportsPage'
 import PostsPage      from './pages/PostsPage'
+import SubjectsPage   from './pages/SubjectsPage'
+import GroupsPage     from './pages/GroupsPage'
 import AdminLayout    from './layouts/AdminLayout'
 
 function ProtectedRoute({ children }) {
@@ -35,6 +37,8 @@ export default function App() {
               <Route path="users"     element={<UsersPage />} />
               <Route path="reports"   element={<ReportsPage />} />
               <Route path="posts"     element={<PostsPage />} />
+              <Route path="subjects"  element={<SubjectsPage />} />
+              <Route path="groups"    element={<GroupsPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

@@ -145,3 +145,30 @@ export const reportsApi = {
   updateStatus: (id, status) => 
     http.patch(`/api/v1/admin/reports/${id}/status`, { status }),
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 📚 Subjects (Mata Kuliah)
+// GET  /api/v1/admin/subjects
+// POST /api/v1/admin/subjects
+// ═════════════════════════════════════════════════════════════════════════════
+export const subjectsApi = {
+  /** Ambil semua mata kuliah */
+  getAll: () => http.get('/api/v1/admin/subjects'),
+
+  /** Buat mata kuliah baru */
+  create: (body) => http.post('/api/v1/admin/subjects', body),
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 👥 Groups (Grup Chat Matkul)
+// GET  /api/v1/admin/groups
+// POST /api/v1/admin/groups/:conversationId/members
+// ═════════════════════════════════════════════════════════════════════════════
+export const groupsApi = {
+  /** Ambil semua grup chat matkul */
+  getAll: () => http.get('/api/v1/admin/groups'),
+
+  /** Tambah mahasiswa (array NIM) ke grup */
+  addMembers: (conversationId, students) =>
+    http.post(`/api/v1/admin/groups/${conversationId}/members`, { students }),
+}
