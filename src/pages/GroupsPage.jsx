@@ -103,11 +103,75 @@ export default function GroupsPage() {
     }
   }
 
+  const [isBulkMode, setIsBulkMode] = useState(false)
+  const [bulkInput, setBulkInput] = useState('')
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false)
+
+  const handleProcessBulk = async () => {
+    if (!bulkInput.trim()) return
+    
+    // Split by comma, newline, or space
+    const nims = bulkInput.split(/[,\n\s]+/).filter(nim => nim.trim().length >= 3)
+    const uniqueNims = [...new Set(nims)]
+    
+    setIsBulkProcessing(true)
+    const newUsers = []
+
+    try {
+      for (const nim of uniqueNims) {
+        // Skip if already in selectedUsers
+        if (selectedUsers.some(u => u.nim === nim)) continue
+
+        try {
+          // Search for this specific NIM
+          const data = await usersApi.search(nim.trim(), 1)
+          const results = data.data?.users || data.users || []
+          
+          // Find the exact NIM match in results
+          const exactMatch = results.find(u => u.nim === nim.trim())
+          
+          if (exactMatch) {
+            newUsers.push(exactMatch)
+          } else {
+            // If not found in database, keep it as manual entry with placeholder
+            newUsers.push({
+              _id: `manual-${nim}`,
+              nim: nim.trim(),
+              nama: `NIM ${nim} (Tidak ditemukan)`,
+              avatar_url: null,
+              isManual: true
+            })
+          }
+        } catch (err) {
+          console.error(`Error fetching NIM ${nim}:`, err)
+          newUsers.push({
+            _id: `err-${nim}`,
+            nim: nim.trim(),
+            nama: `NIM ${nim} (Error)`,
+            isManual: true
+          })
+        }
+      }
+
+      if (newUsers.length > 0) {
+        setSelectedUsers(prev => [...prev, ...newUsers])
+        toast.success(`Berhasil memproses ${newUsers.length} mahasiswa.`)
+      }
+      
+      setBulkInput('')
+      setIsBulkMode(false)
+    } finally {
+      setIsBulkProcessing(false)
+    }
+  }
+
   const closeModal = () => {
     setSelectedGroup(null)
     setSearchQuery('')
     setSelectedUsers([])
     setSearchResults([])
+    setIsBulkMode(false)
+    setBulkInput('')
   }
 
   const columns = [
@@ -226,47 +290,81 @@ export default function GroupsPage() {
           size="lg"
         >
           <div className="p-6 space-y-6">
-            {/* Search Section */}
-            <div className="relative">
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Cari Mahasiswa (NIM atau Nama)</label>
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Masukkan NIM atau Nama..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all"
-                />
-                {isSearching && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-primary-500 animate-spin" />}
-              </div>
-
-              {/* Search Results Dropdown */}
-              {searchResults.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
-                  {searchResults.map(user => (
-                    <button
-                      key={user._id}
-                      onClick={() => toggleUserSelection(user)}
-                      className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama} 
-                          className="w-8 h-8 rounded-full object-cover border border-slate-100" 
-                          alt="" 
-                        />
-                        <div className="text-left">
-                          <p className="text-sm font-bold text-slate-800">{user.nama}</p>
-                          <p className="text-xs text-slate-400 font-mono">{user.nim}</p>
-                        </div>
-                      </div>
-                      <Plus size={16} className="text-primary-500" />
-                    </button>
-                  ))}
-                </div>
-              )}
+            {/* Header & Toggle */}
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                {isBulkMode ? 'Input Masal NIM' : 'Cari Mahasiswa'}
+              </label>
+              <button 
+                onClick={() => setIsBulkMode(!isBulkMode)}
+                className="text-[10px] font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded-lg transition-colors"
+              >
+                {isBulkMode ? <Search size={12} /> : <Plus size={12} />}
+                {isBulkMode ? 'Pindah ke Cari' : 'Mode Masal (Paste NIM)'}
+              </button>
             </div>
+
+            {/* Input Section */}
+            {!isBulkMode ? (
+              <div className="relative">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Masukkan NIM atau Nama..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all"
+                  />
+                  {isSearching && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-primary-500 animate-spin" />}
+                </div>
+
+                {/* Search Results Dropdown */}
+                {searchResults.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                    {searchResults.map(user => (
+                      <button
+                        key={user._id}
+                        onClick={() => toggleUserSelection(user)}
+                        className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama} 
+                            className="w-8 h-8 rounded-full object-cover border border-slate-100" 
+                            alt="" 
+                          />
+                          <div className="text-left">
+                            <p className="text-sm font-bold text-slate-800">{user.nama}</p>
+                            <p className="text-xs text-slate-400 font-mono">{user.nim}</p>
+                          </div>
+                        </div>
+                        <Plus size={16} className="text-primary-500" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <textarea
+                  placeholder="Tempel daftar NIM di sini (pisahkan dengan koma atau baris baru)...&#10;Contoh:&#10;225501, 225502&#10;225503"
+                  value={bulkInput}
+                  onChange={e => setBulkInput(e.target.value)}
+                  className="w-full h-32 p-4 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all font-mono"
+                />
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  className="w-full"
+                  loading={isBulkProcessing}
+                  disabled={!bulkInput.trim() || isBulkProcessing}
+                  onClick={handleProcessBulk}
+                >
+                  Proses &amp; Masukkan ke Antrean
+                </Button>
+              </div>
+            )}
 
             {/* Selected Members Section */}
             <div className="space-y-3">
