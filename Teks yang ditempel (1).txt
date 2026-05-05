@@ -1,0 +1,3420 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "BeSosmed API",
+    "description": "API documentation for BeSosmed — Social Media Backend",
+    "version": "1.0.0"
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+
+    }
+  },
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Login Mahasiswa",
+        "tags": [
+          "Auth"
+        ],
+        "description": "Autentikasi mahasiswa menggunakan NIM dan password. Mengembalikan JWT token yang berlaku selama 30 hari.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nim",
+                  "password"
+                ],
+                "properties": {
+                  "nim": {
+                    "type": "string",
+                    "description": "Nomor Induk Mahasiswa"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "Password mahasiswa (default: ddmmyyyy)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login berhasil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Login berhasil",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "JWT Bearer token, gunakan di header: Authorization: Bearer \u003Ctoken\u003E"
+                        },
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "nim": {
+                              "type": "string"
+                            },
+                            "nama": {
+                              "type": "string"
+                            },
+                            "program_studi": {
+                              "type": "string"
+                            },
+                            "jenis_kelamin": {
+                              "type": "string"
+                            },
+                            "status_mahasiswa": {
+                              "type": "string"
+                            },
+                            "avatar_url": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "NIM atau password salah",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "NIM atau password salah",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Terlalu banyak percobaan login (maks 5x per 15 menit)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Terlalu banyak percobaan login (maks 5x per 15 menit)",
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfter": {
+                      "type": "number",
+                      "description": "Detik sebelum bisa coba lagi"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/google": {
+      "post": {
+        "summary": "Login via Google (Restricted)",
+        "tags": [
+          "Auth"
+        ],
+        "description": "Login menggunakan idToken dari Firebase. Hanya berhasil jika email Google sudah tertaut dengan NIM.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "idToken"
+                ],
+                "properties": {
+                  "idToken": {
+                    "type": "string",
+                    "description": "ID Token dari Firebase Client SDK"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts": {
+      "get": {
+        "summary": "Get Feed",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "before",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Post",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Upload media (foto/video) dengan caption. Gunakan multipart/form-data.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "description": "Teks postingan"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Pilih satu atau banyak foto/video sekaligus"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}": {
+      "get": {
+        "summary": "Post Detail",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Edit Post",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Edit caption, tambah media baru, atau hapus media lama.\n\n**Cara hapus media lama:** isi field `remove_media` dengan JSON array berisi key media, contoh: `[\"posts/images/uuid.png\"]`",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "description": "Caption baru (opsional)"
+                  },
+                  "remove_media": {
+                    "type": "string",
+                    "description": "JSON array key media yang dihapus, contoh: [\"posts/images/uuid.png\"]"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Tambah satu atau banyak foto/video baru"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Post",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/like": {
+      "post": {
+        "summary": "Toggle Like",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/likers": {
+      "get": {
+        "summary": "Get Post Likers",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Mengambil daftar siapa saja yang menyukai postingan ini (Paginated).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/comments": {
+      "get": {
+        "summary": "List Comments",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "parent_id",
+            "required": false,
+            "description": "ID komentar utama (untuk ambil balasannya)"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add/Reply Comment",
+        "tags": [
+          "Posts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "body"
+                ],
+                "properties": {
+                  "body": {
+                    "type": "string",
+                    "description": "Isi komentar"
+                  },
+                  "parent_id": {
+                    "type": "string",
+                    "description": "Isi jika ingin membalas komentar lain"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/comments/{commentId}/tree": {
+      "get": {
+        "summary": "Get Comment Thread (Tree)",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Mengambil seluruh balasan dalam satu thread (flat list) untuk performa tinggi.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Post ID"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "commentId",
+            "required": true,
+            "description": "Root Comment ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/comments/{commentId}": {
+      "delete": {
+        "summary": "Delete Comment",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Menghapus komentar (Hanya oleh pemilik komentar).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Post ID"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "commentId",
+            "required": true,
+            "description": "Comment ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/repost": {
+      "post": {
+        "summary": "Repost",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Unrepost",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Membatalkan repost yang sudah dilakukan.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "Original Post ID"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/share": {
+      "post": {
+        "summary": "Share Post",
+        "tags": [
+          "Posts"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/report-reasons": {
+      "get": {
+        "summary": "Get Report Reasons",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Mengambil daftar alasan yang didukung untuk melaporkan postingan.",
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/posts/{id}/report": {
+      "post": {
+        "summary": "Report Post",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Melaporkan postingan yang melanggar pedoman komunitas.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "reason_type"
+                ],
+                "properties": {
+                  "reason_type": {
+                    "type": "string",
+                    "description": "Jenis pelanggaran dari list reasons"
+                  },
+                  "reason_text": {
+                    "type": "string",
+                    "description": "Detail tambahan (opsional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/stories": {
+      "post": {
+        "summary": "Create a New Story",
+        "tags": [
+          "Stories"
+        ],
+        "description": "Upload Foto, Video, atau hanya Teks untuk dijadikan story. Ukuran maksimal 50 MB. Story akan hilang otomatis setelah durasi tertentu.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "content": {
+                    "type": "string",
+                    "description": "Teks story (opsional)"
+                  },
+                  "media": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Pilih foto atau video (maks 50MB)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Get Friend Stories",
+        "tags": [
+          "Stories"
+        ],
+        "description": "Mengambil daftar story aktif dari teman (Following) dan diri sendiri, dikelompokkan per user.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "stories": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "user": {
+                                "type": "object",
+                                "properties": {
+                                  "_id": {
+                                    "type": "string"
+                                  },
+                                  "nim": {
+                                    "type": "string"
+                                  },
+                                  "nama": {
+                                    "type": "string"
+                                  },
+                                  "avatar_url": {
+                                    "type": "string"
+                                  }
+                                }
+                              },
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "type": "object",
+                                  "properties": {
+                                    "_id": {
+                                      "type": "string"
+                                    },
+                                    "author_id": {
+                                      "type": "object"
+                                    },
+                                    "content": {
+                                      "type": "string"
+                                    },
+                                    "media": {
+                                      "type": "object",
+                                      "properties": {
+                                        "url": {
+                                          "type": "string"
+                                        },
+                                        "key": {
+                                          "type": "string"
+                                        },
+                                        "type": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "views_count": {
+                                      "type": "number"
+                                    },
+                                    "createdAt": {
+                                      "type": "string"
+                                    },
+                                    "updatedAt": {
+                                      "type": "string"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/view": {
+      "post": {
+        "summary": "Record Story View",
+        "tags": [
+          "Stories"
+        ],
+        "description": "Dijalankan setiap kali user membuka story orang lain. Otomatis menambah jumlah penonton (real-time).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID Story"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/viewers": {
+      "get": {
+        "summary": "Get Story Viewers",
+        "tags": [
+          "Stories"
+        ],
+        "description": "Melihat siapa saja yang sudah menonton story. (Hanya untuk pemilik story).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID Story"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total_views": {
+                          "type": "number"
+                        },
+                        "viewers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_id": {
+                                "type": "string"
+                              },
+                              "nim": {
+                                "type": "string"
+                              },
+                              "nama": {
+                                "type": "string"
+                              },
+                              "avatar_url": {
+                                "type": "string"
+                              },
+                              "program_studi": {
+                                "type": "string"
+                              },
+                              "viewed_at": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "summary": "Search Users",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Mencari mahasiswa berdasarkan nama, nim, atau program studi.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "description": "Kata kunci pencarian (nama/nim/prodi)"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "summary": "Get My Profile",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Mengambil data profil lengkap user yang sedang login.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "_id": {
+                              "type": "string"
+                            },
+                            "nim": {
+                              "type": "string"
+                            },
+                            "nama": {
+                              "type": "string"
+                            },
+                            "program_studi": {
+                              "type": "string"
+                            },
+                            "status_mahasiswa": {
+                              "type": "string"
+                            },
+                            "jenis_kelamin": {
+                              "type": "string"
+                            },
+                            "bio": {
+                              "type": "string"
+                            },
+                            "avatar_url": {
+                              "type": "string"
+                            },
+                            "is_online": {
+                              "type": "boolean"
+                            },
+                            "tempat_lahir": {
+                              "type": "string"
+                            },
+                            "tanggal_lahir": {
+                              "type": "string"
+                            },
+                            "agama": {
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update My Profile",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Perbarui data profil (saat ini: bio).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "bio": {
+                    "type": "string",
+                    "description": "Bio atau deskripsi singkat profil kamu"
+                  },
+                  "tempat_lahir": {
+                    "type": "string",
+                    "description": "Tempat lahir"
+                  },
+                  "tanggal_lahir": {
+                    "type": "string",
+                    "description": "Tanggal lahir (format: dd-mm-yyyy)"
+                  },
+                  "agama": {
+                    "type": "string",
+                    "description": "Agama"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "_id": {
+                              "type": "string"
+                            },
+                            "nim": {
+                              "type": "string"
+                            },
+                            "nama": {
+                              "type": "string"
+                            },
+                            "bio": {
+                              "type": "string"
+                            },
+                            "avatar_url": {
+                              "type": "string"
+                            },
+                            "program_studi": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}": {
+      "get": {
+        "summary": "Get Other User Profile",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Melihat profil publik user lain lengkap dengan status hubungan (is_following, follows_me).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID User yang ingin dilihat"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "type": "object",
+                          "properties": {
+                            "_id": {
+                              "type": "string"
+                            },
+                            "nim": {
+                              "type": "string"
+                            },
+                            "nama": {
+                              "type": "string"
+                            },
+                            "program_studi": {
+                              "type": "string"
+                            },
+                            "bio": {
+                              "type": "string"
+                            },
+                            "avatar_url": {
+                              "type": "string"
+                            },
+                            "followers_count": {
+                              "type": "number"
+                            },
+                            "following_count": {
+                              "type": "number"
+                            },
+                            "is_following": {
+                              "type": "boolean"
+                            },
+                            "follows_me": {
+                              "type": "boolean"
+                            },
+                            "createdAt": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/posts": {
+      "get": {
+        "summary": "Get User Activity (Posts & Reposts)",
+        "tags": [
+          "Posts"
+        ],
+        "description": "Mengambil gabungan postingan asli dan repost milik user tertentu. Sangat efisien untuk halaman profil.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "description": "Cursor timestamp untuk pagination"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID User yang ingin dilihat"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/me/avatar": {
+      "post": {
+        "summary": "Upload Avatar",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Upload foto profil. File akan disimpan di Cloudflare R2 (folder: avatars/). Format yang didukung: JPG, PNG, WEBP, GIF.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Pilih foto profil (JPG/PNG/WEBP/GIF)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "avatar_url": {
+                          "type": "string",
+                          "description": "URL publik foto profil baru"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Avatar",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Hapus foto profil. File akan dihapus dari Cloudflare R2 dan avatar_url akan dikosongkan.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/password": {
+      "patch": {
+        "summary": "Change Password",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Ganti password user yang sedang login dengan verifikasi password lama.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "oldPassword",
+                  "newPassword"
+                ],
+                "properties": {
+                  "oldPassword": {
+                    "type": "string",
+                    "description": "Password saat ini"
+                  },
+                  "newPassword": {
+                    "type": "string",
+                    "description": "Password baru yang ingin digunakan"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/link-google": {
+      "post": {
+        "summary": "Link Google Account",
+        "tags": [
+          "Profile"
+        ],
+        "description": "Hubungkan akun Google (Gmail) ke NIM yang sedang login agar bisa login via Google nantinya.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "idToken"
+                ],
+                "properties": {
+                  "idToken": {
+                    "type": "string",
+                    "description": "ID Token dari Firebase Client SDK"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/follow": {
+      "post": {
+        "summary": "Follow a User",
+        "tags": [
+          "Follow"
+        ],
+        "description": "Mulai mengikuti user lain. Akan otomatis menambah followers_count target dan mengirim notifikasi.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID User yang ingin diikuti"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/unfollow": {
+      "post": {
+        "summary": "Unfollow a User",
+        "tags": [
+          "Follow"
+        ],
+        "description": "Berhenti mengikuti user lain.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID User yang ingin berhenti diikuti"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/followers": {
+      "get": {
+        "summary": "Get User Followers",
+        "tags": [
+          "Follow"
+        ],
+        "description": "Mengambil daftar siapa saja yang mengikuti user ini.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID User"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "followers": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_id": {
+                                "type": "string"
+                              },
+                              "nim": {
+                                "type": "string"
+                              },
+                              "nama": {
+                                "type": "string"
+                              },
+                              "avatar_url": {
+                                "type": "string"
+                              },
+                              "follow_date": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/{id}/following": {
+      "get": {
+        "summary": "Get User Following",
+        "tags": [
+          "Follow"
+        ],
+        "description": "Mengambil daftar siapa saja yang diikuti oleh user ini.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "description": "ID User"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "following": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "_id": {
+                                "type": "string"
+                              },
+                              "nim": {
+                                "type": "string"
+                              },
+                              "nama": {
+                                "type": "string"
+                              },
+                              "avatar_url": {
+                                "type": "string"
+                              },
+                              "follow_date": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Get My Notifications",
+        "tags": [
+          "Notification"
+        ],
+        "description": "Mengambil daftar notifikasi terbaru dengan pesan yang sudah dikelompokkan (Gaya Facebook).",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/read": {
+      "patch": {
+        "summary": "Mark All as Read",
+        "tags": [
+          "Notification"
+        ],
+        "description": "Menandai semua notifikasi user sebagai terbaca.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "patch": {
+        "summary": "Mark Single Notification as Read",
+        "tags": [
+          "Notification"
+        ],
+        "description": "Menandai satu notifikasi tertentu sebagai terbaca.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/login": {
+      "post": {
+        "summary": "Login khusus Admin",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nim",
+                  "password"
+                ],
+                "properties": {
+                  "nim": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/posts": {
+      "get": {
+        "summary": "Melihat semua postingan untuk moderasi",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/posts/{id}/takedown": {
+      "post": {
+        "summary": "Takedown postingan secara paksa",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/posts/{id}/untakedown": {
+      "post": {
+        "summary": "Membatalkan takedown postingan (Pulihkan)",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/ban": {
+      "post": {
+        "summary": "Memblokir akun user",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/unban": {
+      "post": {
+        "summary": "Membuka blokir akun user",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/search/users": {
+      "get": {
+        "summary": "Mencari user (Semua status)",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/search/posts": {
+      "get": {
+        "summary": "Mencari postingan (Semua status)",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "query",
+            "name": "q",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reports": {
+      "get": {
+        "summary": "Melihat daftar laporan masuk",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "ignored",
+                "resolved",
+                "all"
+              ],
+              "default": "pending"
+            },
+            "in": "query",
+            "name": "status",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false
+          },
+          {
+            "schema": {
+              "type": "integer"
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/reports/{id}/status": {
+      "patch": {
+        "summary": "Update status laporan (Tandai sudah diperiksa)",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "ignored",
+                      "resolved"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/subjects": {
+      "get": {
+        "summary": "Admin: Ambil semua daftar mata kuliah (Untuk Dropdown)",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Admin: Buat Mata Kuliah baru secara manual",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "code",
+                  "name",
+                  "academic_year"
+                ],
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "academic_year": {
+                    "type": "string"
+                  },
+                  "lecturer_name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/groups": {
+      "get": {
+        "summary": "Admin: Lihat daftar semua grup chat matkul yang aktif",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/groups/{conversationId}/members": {
+      "get": {
+        "summary": "Admin: Lihat daftar detail mahasiswa dalam satu grup",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conversationId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "post": {
+        "summary": "Admin: Tambahkan mahasiswa baru ke grup chat yang sudah ada",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "students"
+                ],
+                "properties": {
+                  "students": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Daftar NIM mahasiswa"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conversationId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/groups/{conversationId}/members/{userId}": {
+      "delete": {
+        "summary": "Admin: Keluarkan satu mahasiswa dari grup",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conversationId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/conversations": {
+      "get": {
+        "summary": "Ambil daftar percakapan (Inbox)",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/conversations/{conversationId}/messages": {
+      "get": {
+        "summary": "Ambil riwayat pesan dalam percakapan",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conversationId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/messages": {
+      "post": {
+        "summary": "Kirim pesan (Teks/Media)",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "description": "Gunakan multipart/form-data. Pilih \"Files\" untuk kirim gambar/video.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "recipientId": {
+                    "type": "string",
+                    "description": "ID User penerima (untuk chat baru)"
+                  },
+                  "conversationId": {
+                    "type": "string",
+                    "description": "ID Percakapan (jika sudah ada room-nya)"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "Isi pesan teks"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Lampiran foto/video/file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/typing": {
+      "post": {
+        "summary": "Update status sedang mengetik",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "conversationId",
+                  "isTyping"
+                ],
+                "properties": {
+                  "conversationId": {
+                    "type": "string"
+                  },
+                  "isTyping": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/messages/{messageId}": {
+      "delete": {
+        "summary": "Hapus pesan (Untuk saya / Semua orang)",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "me",
+                      "everyone"
+                    ],
+                    "default": "me"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/conversations/{conversationId}/clear": {
+      "delete": {
+        "summary": "Membersihkan seluruh isi obrolan",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conversationId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/media/{folder}/{filename}": {
+      "get": {
+        "summary": "Ambil dan dekripsi file media chat",
+        "tags": [
+          "Chat Inbox"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "folder",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "filename",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities": {
+      "post": {
+        "summary": "Create New Community",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Membuat grup komunitas baru dengan nama, deskripsi, dan foto profil (avatar).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Nama komunitas"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Deskripsi komunitas"
+                  },
+                  "members": {
+                    "type": "string",
+                    "description": "JSON array NIM mahasiswa yang ingin dimasukkan, contoh: [\"225520211003\", \"225520211002\"]"
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Foto profil grup"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get My Communities",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Mengambil daftar komunitas yang diikuti oleh user.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/{communityId}": {
+      "get": {
+        "summary": "Get Community Detail",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Mengambil detail komunitas: info grup, daftar member, jumlah anggota, dan info admin.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "description": "ID Komunitas"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Community (Creator Only)",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Menghapus komunitas beserta seluruh pesan dan file di R2. Hanya bisa dilakukan oleh pencipta komunitas.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "description": "ID Komunitas yang akan dihapus"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/{communityId}/messages": {
+      "get": {
+        "summary": "Get Community Messages",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Mengambil riwayat percakapan komunitas. Pesan otomatis didekripsi. Mendukung pagination.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "default": 30
+            },
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "description": "Jumlah pesan per halaman"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "default": 0
+            },
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "description": "Offset untuk pagination"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true,
+            "description": "ID Komunitas"
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/typing": {
+      "post": {
+        "summary": "Set Typing Status (Real-time)",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Kirim status sedang mengetik ke semua member komunitas via Socket.io.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "conversationId",
+                  "isTyping"
+                ],
+                "properties": {
+                  "conversationId": {
+                    "type": "string",
+                    "description": "ID Komunitas"
+                  },
+                  "isTyping": {
+                    "type": "boolean",
+                    "description": "true = sedang mengetik, false = berhenti"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/messages": {
+      "post": {
+        "summary": "Send Community Message",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Mengirim pesan teks atau media ke grup komunitas. Semua terenkripsi AES-256.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "conversationId": {
+                    "type": "string",
+                    "description": "ID Komunitas"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "Isi pesan teks"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "description": "Lampiran foto/video/file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/messages/{messageId}": {
+      "delete": {
+        "summary": "Delete Community Message",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Menghapus pesan untuk diri sendiri atau semua orang (Hard Delete & R2 Cleanup).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "me",
+                      "everyone"
+                    ],
+                    "description": "Jenis penghapusan"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/invite": {
+      "post": {
+        "summary": "Invite Member (Admin Only)",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Mengundang user lain masuk ke komunitas.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "communityId",
+                  "nim"
+                ],
+                "properties": {
+                  "communityId": {
+                    "type": "string",
+                    "description": "ID Komunitas"
+                  },
+                  "nim": {
+                    "type": "string",
+                    "description": "NIM mahasiswa yang ingin diundang, contoh: 225520211003"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat/communities/{communityId}/members/{userId}": {
+      "delete": {
+        "summary": "Kick Member (Admin Only)",
+        "tags": [
+          "Chat Community"
+        ],
+        "description": "Mengeluarkan anggota dari komunitas.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "communityId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/sync": {
+      "post": {
+        "summary": "Admin: Sinkronisasi daftar mahasiswa ke grup matkul (Batch)",
+        "tags": [
+          "Admin Dashboard"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "subject_name",
+                  "subject_code",
+                  "students"
+                ],
+                "properties": {
+                  "subject_name": {
+                    "type": "string"
+                  },
+                  "subject_code": {
+                    "type": "string"
+                  },
+                  "academic_year": {
+                    "type": "string"
+                  },
+                  "expires_at": {
+                    "type": "string",
+                    "description": "Tanggal kadaluarsa grup (Format: YYYY-MM-DD)"
+                  },
+                  "students": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/my-groups": {
+      "get": {
+        "summary": "Mengambil daftar grup matkul yang saya ikuti",
+        "tags": [
+          "Chat Matkul"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/messages": {
+      "post": {
+        "summary": "Mengirim pesan ke grup matkul (Teks & Media)",
+        "tags": [
+          "Chat Matkul"
+        ],
+        "description": "Gunakan form-data untuk mengirim file dan teks sekaligus.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "conversationId": {
+                    "type": "string",
+                    "description": "ID Grup Chat"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Pesan teks (opsional jika ada file)"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Lampiran foto/video/file"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/messages/{conversationId}": {
+      "get": {
+        "summary": "Mengambil riwayat pesan grup matkul",
+        "tags": [
+          "Chat Matkul"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "conversationId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/messages/{messageId}": {
+      "delete": {
+        "summary": "Menghapus/Menarik pesan di grup",
+        "tags": [
+          "Chat Matkul"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "me",
+                      "everyone"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "messageId",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/typing": {
+      "post": {
+        "summary": "Set status ngetik di grup matkul",
+        "tags": [
+          "Chat Matkul"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "conversationId",
+                  "isTyping"
+                ],
+                "properties": {
+                  "conversationId": {
+                    "type": "string"
+                  },
+                  "isTyping": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    },
+    "/api/v1/chat-matkul/media/{folder}/{filename}": {
+      "get": {
+        "summary": "Proxy Dekripsi Media (Foto/Video) - Chat Matkul",
+        "tags": [
+          "Chat Matkul"
+        ],
+        "description": "Mengambil media terenkripsi dari R2, mendekripsinya, dan menyajikannya sebagai file asli.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "folder",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "filename",
+            "required": true
+          }
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://besosmed-production.up.railway.app",
+      "description": "Production (Railway)"
+    },
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Development"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Autentikasi — Login & Token"
+    },
+    {
+      "name": "Profile",
+      "description": "Profil — Data diri, Bio, dan Avatar"
+    },
+    {
+      "name": "Posts",
+      "description": "Postingan — CRUD, Like, Komentar, Repost, Share"
+    },
+    {
+      "name": "Realtime",
+      "description": "WebSocket — Koneksi real-time"
+    },
+    {
+      "name": "Admin Dashboard",
+      "description": "Khusus Admin — Moderasi, Takedown, dan Banning"
+    },
+    {
+      "name": "Chat Inbox",
+      "description": "Pesan Pribadi (Inbox) — Enkripsi, Media, dan Realtime"
+    },
+    {
+      "name": "Chat Matkul",
+      "description": "Grup Mata Kuliah — Otomatisasi Member, Enkripsi, dan Realtime"
+    }
+  ]
+}

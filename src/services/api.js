@@ -19,9 +19,13 @@ async function request(endpoint, options = {}) {
   const token = getToken()
 
   const headers = {
-    'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers ?? {}),
+  }
+
+  // Fastify menolak request tanpa body jika Content-Type diset application/json
+  if (options.body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json'
   }
 
   try {
@@ -69,9 +73,10 @@ async function request(endpoint, options = {}) {
 
 // ─── HTTP shortcuts ───────────────────────────────────────────────────────────
 const http = {
-  get: (ep, opts = {}) => request(ep, { method: 'GET', ...opts }),
-  post: (ep, body, opts = {}) => request(ep, { method: 'POST', body: JSON.stringify(body ?? {}), ...opts }),
+  get:   (ep, opts = {}) => request(ep, { method: 'GET', ...opts }),
+  post:  (ep, body, opts = {}) => request(ep, { method: 'POST', body: JSON.stringify(body ?? {}), ...opts }),
   patch: (ep, body, opts = {}) => request(ep, { method: 'PATCH', body: JSON.stringify(body ?? {}), ...opts }),
+  del:   (ep, opts = {}) => request(ep, { method: 'DELETE', ...opts }),
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -142,7 +147,7 @@ export const reportsApi = {
     const params = new URLSearchParams({ status, limit, skip })
     return http.get(`/api/v1/admin/reports?${params}`)
   },
-  updateStatus: (id, status) =>
+  updateStatus: (id, status) => 
     http.patch(`/api/v1/admin/reports/${id}/status`, { status }),
 }
 
@@ -162,13 +167,32 @@ export const subjectsApi = {
 // ═════════════════════════════════════════════════════════════════════════════
 // 👥 Groups (Grup Chat Matkul)
 // GET  /api/v1/admin/groups
+// GET  /api/v1/admin/groups/:conversationId/members
 // POST /api/v1/admin/groups/:conversationId/members
+// DELETE /api/v1/admin/groups/:conversationId/members/:userId
 // ═════════════════════════════════════════════════════════════════════════════
 export const groupsApi = {
   /** Ambil semua grup chat matkul */
   getAll: () => http.get('/api/v1/admin/groups'),
 
+  /** Ambil detail mahasiswa dalam grup */
+  getMembers: (conversationId) =>
+    http.get(`/api/v1/admin/groups/${conversationId}/members`),
+
   /** Tambah mahasiswa (array NIM) ke grup */
   addMembers: (conversationId, students) =>
     http.post(`/api/v1/admin/groups/${conversationId}/members`, { students }),
+
+  /** Keluarkan satu mahasiswa dari grup */
+  kickMember: (conversationId, userId) =>
+    http.del(`/api/v1/admin/groups/${conversationId}/members/${userId}`),
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ⚡ Chat Matkul (Batch Sync)
+// POST /api/v1/chat-matkul/sync
+// ═════════════════════════════════════════════════════════════════════════════
+export const chatSyncApi = {
+  /** Sinkronisasi daftar mahasiswa ke grup matkul (Batch) */
+  sync: (body) => http.post('/api/v1/chat-matkul/sync', body),
 }

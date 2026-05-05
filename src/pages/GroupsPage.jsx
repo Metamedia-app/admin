@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users, Plus, X, RefreshCw, MessageSquare,
-  UserPlus, BookOpen, CalendarDays, Trash2, Search, Loader2
+  UserPlus, BookOpen, CalendarDays, Trash2, Search, Loader2, Eye
 } from 'lucide-react'
 import Card    from '../components/Card'
 import Table   from '../components/Table'
@@ -20,6 +20,15 @@ function extractGroups(data) {
   return []
 }
 
+function extractMembers(data) {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.members)) return data.members
+  if (data.data && Array.isArray(data.data.members)) return data.data.members
+  if (Array.isArray(data.data)) return data.data
+  return []
+}
+
 export default function GroupsPage() {
   const toast = useToast()
   const [groups, setGroups]     = useState([])
@@ -32,6 +41,11 @@ export default function GroupsPage() {
   const [searchResults, setSearchResults] = useState([])
   const [selectedUsers, setSelectedUsers] = useState([])
   const [isSearching, setIsSearching] = useState(false)
+  
+  // View Members States
+  const [viewingGroup, setViewingGroup] = useState(null)
+  const [groupMembers, setGroupMembers] = useState([])
+  const [loadingMembers, setLoadingMembers] = useState(false)
   
   const [submitting, setSubmitting] = useState(false)
 
@@ -165,6 +179,33 @@ export default function GroupsPage() {
     }
   }
 
+  const handleViewMembers = async (group) => {
+    setViewingGroup(group)
+    setLoadingMembers(true)
+    try {
+      const data = await groupsApi.getMembers(group.id)
+      setGroupMembers(extractMembers(data))
+    } catch (err) {
+      toast.error('Gagal mengambil daftar member', { title: 'Error' })
+    } finally {
+      setLoadingMembers(false)
+    }
+  }
+
+  const handleKickMember = async (userId, userName) => {
+    if (!confirm(`Keluarkan ${userName} dari grup ini?`)) return
+    
+    try {
+      await groupsApi.kickMember(viewingGroup.id, userId)
+      toast.success(`${userName} berhasil dikeluarkan.`)
+      // Hapus dari list modal
+      setGroupMembers(prev => prev.filter(m => m._id !== userId && m.id !== userId))
+      fetchGroups(true) // Update jumlah member di tabel
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Mengeluarkan' })
+    }
+  }
+
   const closeModal = () => {
     setSelectedGroup(null)
     setSearchQuery('')
@@ -242,13 +283,22 @@ export default function GroupsPage() {
         const id   = row._id || row.id || row.conversation_id
         const name = row.name || row.subject_name || 'Grup'
         return (
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setSelectedGroup({ id, name })}
-          >
-            <UserPlus size={13} /> Tambah Member
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleViewMembers({ id, name })}
+            >
+              <Eye size={13} /> Detail
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setSelectedGroup({ id, name })}
+            >
+              <UserPlus size={13} /> Tambah
+            </Button>
+          </div>
         )
       },
     },
@@ -415,6 +465,60 @@ export default function GroupsPage() {
                 onClick={handleAddMembers}
               >
                 <UserPlus size={14} /> Tambahkan ke Grup
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modal Detail Member */}
+      {viewingGroup && (
+        <Modal
+          isOpen={!!viewingGroup}
+          onClose={() => setViewingGroup(null)}
+          title={`Member Grup "${viewingGroup.name}"`}
+          size="md"
+        >
+          <div className="p-6">
+            {loadingMembers ? (
+              <div className="flex justify-center py-10">
+                <Loader2 size={24} className="text-primary-500 animate-spin" />
+              </div>
+            ) : groupMembers.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                Belum ada member di grup ini.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                {groupMembers.map(member => {
+                  const uId = member._id || member.id
+                  const uName = member.nama || member.name || member.nim
+                  const uNim = member.nim
+                  return (
+                    <div key={uId} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <img src={member.avatar_url || 'https://ui-avatars.com/api/?name=' + uName} className="w-8 h-8 rounded-full border border-white shadow-sm" alt="" />
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{uName}</p>
+                          <p className="text-[10px] text-slate-400 font-mono">{uNim}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => handleKickMember(uId, uName)}
+                        className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-100"
+                        title="Keluarkan dari grup"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            
+            <div className="mt-6">
+              <Button type="button" variant="secondary" className="w-full" onClick={() => setViewingGroup(null)}>
+                Tutup
               </Button>
             </div>
           </div>
