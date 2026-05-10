@@ -8,6 +8,8 @@ import {
   ShieldCheck,
   BookOpen,
   MessagesSquare,
+  UserCog,
+  GraduationCap,
 } from 'lucide-react'
 
 const mainNavItems = [
@@ -15,6 +17,10 @@ const mainNavItems = [
   { to: '/users',     icon: Users,           label: 'Users' },
   { to: '/reports',   icon: FileWarning,     label: 'Reports' },
   { to: '/posts',     icon: FileText,        label: 'Posts' },
+]
+
+const adminNavItems = [
+  { to: '/user-management', icon: UserCog,       label: 'Manajemen User' },
 ]
 
 const matkulNavItems = [
@@ -56,6 +62,34 @@ export default function Sidebar({ isOpen, onClose }) {
         </p>
         <div className="space-y-1">
           {mainNavItems.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
+                 ${isActive
+                   ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
+                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                 }`
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <span className={`${isActive ? 'text-white' : 'text-slate-500'}`}>
+                    <Icon size={18} />
+                  </span>
+                  {label}
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
+
+        <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-4 mt-8 opacity-80">
+          Admin
+        </p>
+        <div className="space-y-1">
+          {adminNavItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}

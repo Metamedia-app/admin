@@ -140,6 +140,22 @@ export const usersApi = {
     const params = new URLSearchParams(p)
     return http.get(`/api/v1/admin/search/users?${params}`)
   },
+
+  /** Buat akun user / admin / dosen baru */
+  create: (body) => http.post('/api/v1/admin/users', body),
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 🎓 Majors (Program Studi / Jurusan)
+// GET  /api/v1/admin/majors
+// POST /api/v1/admin/majors
+// ═════════════════════════════════════════════════════════════════════════════
+export const majorsApi = {
+  /** Ambil semua program studi */
+  getAll: () => http.get('/api/v1/admin/majors'),
+
+  /** Tambah program studi baru */
+  create: (body) => http.post('/api/v1/admin/majors', body),
 }
 
 export const reportsApi = {
