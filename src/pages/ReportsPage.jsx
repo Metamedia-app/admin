@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { AlertCircle, Eye, CheckCircle, Search, Filter, RefreshCw, User, MessageSquare } from 'lucide-react'
 import Card         from '../components/Card'
 import Table        from '../components/Table'
@@ -13,14 +14,16 @@ import { reportsApi, postsApi } from '../services/api'
 // ─── Normalizer Report ──────────────────────────────────────────────────────
 function normalizeReport(r) {
   const reporter = r.reporter_id || {}
-  const post     = r.post_id || {}
-  const postAuthor = post.author_id || {}
+  const post     = r.post_id || null
+  const postAuthor = post?.author_id || {}
+  const isSystem = r.reason_type?.includes('Sistem')
 
   return {
     id:         r._id,
     type:       r.reason_type || 'Laporan Umum',
     reason:     r.reason_text || '-',
     status:     r.status || 'pending',
+    isSystem,
     date:       new Date(r.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
     fullDate:   new Date(r.createdAt).toLocaleString('id-ID'),
     reporter: {
@@ -30,7 +33,7 @@ function normalizeReport(r) {
       initials: (reporter.nama || 'AN').slice(0, 2).toUpperCase()
     },
     // Objek post yang sudah siap untuk PostPreview
-    postData: {
+    postData: post ? {
       id:       post._id,
       title:    post.caption || 'Postingan',
       content:  post.caption || '',
@@ -43,7 +46,7 @@ function normalizeReport(r) {
         initials: (postAuthor.nama || 'UN').slice(0, 2).toUpperCase()
       },
       raw:      post
-    },
+    } : null,
     raw: r
   }
 }
@@ -51,6 +54,7 @@ function normalizeReport(r) {
 function extractArray(data) {
   if (!data) return []
   if (Array.isArray(data)) return data
+  if (Array.isArray(data.data)) return data.data
   if (Array.isArray(data.data?.reports)) return data.data.reports
   if (Array.isArray(data.reports)) return data.reports
   return []
@@ -58,6 +62,11 @@ function extractArray(data) {
 
 export default function ReportsPage() {
   const toast = useToast()
+  const location = useLocation()
+  // ID laporan yang diklik dari notif — untuk buka modal langsung
+  const highlightId = location.state?.highlightId ?? null
+  const highlightHandled = useRef(false)
+
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -86,6 +95,34 @@ export default function ReportsPage() {
   }, [filter, page, toast])
 
   useEffect(() => { fetchReports() }, [fetchReports])
+
+  // ─── Jika datang dari klik notif, atur filter & cari laporan ─────────────────
+  useEffect(() => {
+    if (highlightId && !highlightHandled.current) {
+      // Reset agar bisa scan dari page 1 dengan filter all
+      highlightHandled.current = false
+      setFilter('all')
+      setPage(1)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId])
+
+  // Setelah data load, cari laporan berdasarkan highlightId
+  useEffect(() => {
+    if (!highlightId || loading || highlightHandled.current || reports.length === 0) return
+    const found = reports.find(r => r.id === highlightId)
+    if (found) {
+      setSelectedReport(found)
+      highlightHandled.current = true
+    } else if (hasMore && page < 10) {
+      // Belum ketemu, coba halaman berikutnya (max 10 halaman)
+      setPage(prev => prev + 1)
+    } else {
+      // Tidak ditemukan di semua halaman
+      highlightHandled.current = true
+      toast.info('Laporan tidak ditemukan di halaman ini.', { title: 'Info' })
+    }
+  }, [highlightId, reports, loading, hasMore, page, toast])
 
   const handleTakedown = async (reportId, postId) => {
     try {
@@ -127,11 +164,16 @@ export default function ReportsPage() {
       label: 'Tipe Laporan',
       render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+          <div className={`p-2 rounded-lg ${row.isSystem ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
             <AlertCircle size={18} />
           </div>
           <div>
-            <p className="font-semibold text-slate-800">{row.type}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-semibold text-slate-800">{row.type}</p>
+              {row.isSystem && (
+                <span className="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] font-bold rounded uppercase">Auto</span>
+              )}
+            </div>
             <p className="text-xs text-slate-400">{row.date}</p>
           </div>
         </div>
@@ -206,7 +248,18 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        <Table columns={columns} data={reports} loading={loading} skeletonRows={5} emptyMessage="Tidak ada laporan masuk." />
+        <Table 
+          columns={columns} 
+          data={reports} 
+          loading={loading} 
+          skeletonRows={5} 
+          emptyMessage="Tidak ada laporan masuk."
+          getRowClassName={(row) =>
+            row.id === highlightId
+              ? 'bg-amber-50 ring-1 ring-amber-300 ring-inset'
+              : ''
+          }
+        />
         
         <Pagination currentPage={page} hasMore={hasMore} onPageChange={setPage} loading={loading} />
       </Card>
@@ -227,12 +280,26 @@ export default function ReportsPage() {
                 <div className="bg-slate-50 rounded-2xl p-4 space-y-4 border border-slate-100">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase">Tipe</p>
-                    <p className="text-sm font-bold text-amber-600">{selectedReport.type}</p>
+                    <div className="flex items-center gap-2">
+                      <p className={`text-sm font-bold ${selectedReport.isSystem ? 'text-red-600' : 'text-amber-600'}`}>
+                        {selectedReport.type}
+                      </p>
+                      {selectedReport.isSystem && <Badge label="SYSTEM DETECTED" variant="removed" />}
+                    </div>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Alasan Pelapor</p>
-                    <p className="text-sm text-slate-700 bg-white p-3 rounded-xl border border-slate-100 mt-1 shadow-sm">
-                      "{selectedReport.reason}"
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Detail Laporan</p>
+                    <p className={`text-sm p-3 rounded-xl border mt-1 shadow-sm ${
+                      selectedReport.isSystem 
+                        ? 'bg-red-50 text-red-700 border-red-100 font-medium' 
+                        : 'bg-white text-slate-700 border-slate-100'
+                    }`}>
+                      {selectedReport.isSystem ? (
+                        <span className="flex items-start gap-2">
+                          <MessageSquare size={14} className="mt-1 flex-shrink-0" />
+                          {selectedReport.reason}
+                        </span>
+                      ) : `"${selectedReport.reason}"`}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 pt-2">
@@ -285,7 +352,17 @@ export default function ReportsPage() {
             {/* Right: Post Preview */}
             <div className="lg:col-span-3">
               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Konten yang Dilaporkan</h4>
-              <PostPreview post={selectedReport.postData} />
+              {selectedReport.postData ? (
+                <PostPreview post={selectedReport.postData} />
+              ) : (
+                <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-10 flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center text-slate-400 mb-4">
+                    <AlertCircle size={32} />
+                  </div>
+                  <h5 className="text-slate-800 font-bold mb-1">Postingan Tidak Ditemukan</h5>
+                  <p className="text-slate-500 text-sm">Konten ini mungkin sudah dihapus atau tidak dapat diakses.</p>
+                </div>
+              )}
             </div>
           </div>
         </Modal>

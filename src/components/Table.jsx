@@ -24,6 +24,7 @@ export default function Table({
   skeletonRows = 5,
   emptyMessage = 'No data found.',
   emptyIcon,
+  getRowClassName,
 }) {
   return (
     <div className="overflow-x-auto">
@@ -61,7 +62,9 @@ export default function Table({
             data.map((row, idx) => (
               <tr
                 key={row.id ?? idx}
-                className="border-b border-slate-50 hover:bg-primary-50/40 transition-colors duration-100 group"
+                className={`border-b border-slate-50 hover:bg-primary-50/40 transition-colors duration-100 group ${
+                  getRowClassName ? getRowClassName(row) : ''
+                }`}
               >
                 {columns.map(col => (
                   <td key={col.key} className="px-4 py-3.5 text-slate-700 whitespace-nowrap">
