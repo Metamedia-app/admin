@@ -76,6 +76,13 @@ export default function GroupsPage() {
   const [createIsBulkProcessing, setCreateIsBulkProcessing] = useState(false)
   const [createSubmitting, setCreateSubmitting] = useState(false)
 
+  // Lecturer Search States
+  const [lecturerSearchQuery, setLecturerSearchQuery] = useState('')
+  const [lecturerSearchResults, setLecturerSearchResults] = useState([])
+  const [isSearchingLecturer, setIsSearchingLecturer] = useState(false)
+  const [selectedLecturer, setSelectedLecturer] = useState(null)
+  const [isManualLecturer, setIsManualLecturer] = useState(false)
+
   const fetchGroups = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
@@ -127,6 +134,27 @@ export default function GroupsPage() {
     }, 500)
     return () => clearTimeout(timer)
   }, [createSearchQuery])
+
+  // Debounced User Search for Lecturer
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (lecturerSearchQuery.length < 3) {
+        setLecturerSearchResults([])
+        return
+      }
+      setIsSearchingLecturer(true)
+      try {
+        const data = await usersApi.search(lecturerSearchQuery, 5)
+        const results = data.data?.users || data.users || []
+        setLecturerSearchResults(results)
+      } catch (err) {
+        console.error('Lecturer search error:', err)
+      } finally {
+        setIsSearchingLecturer(false)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [lecturerSearchQuery])
 
   // Debounced User Search
   useEffect(() => {
@@ -385,6 +413,16 @@ export default function GroupsPage() {
     }
   }
 
+  const selectLecturer = (user) => {
+    setSelectedLecturer({
+      nama: user.nama || user.name,
+      nim: user.nim
+    })
+    setCreateForm(prev => ({ ...prev, lecturer_nim: user.nim }))
+    setLecturerSearchQuery('')
+    setLecturerSearchResults([])
+  }
+
   const closeCreateModal = () => {
     setShowCreateModal(false)
     setCreateForm({
@@ -397,6 +435,10 @@ export default function GroupsPage() {
     setCreateSelectedUsers([])
     setCreateIsBulkMode(false)
     setCreateBulkInput('')
+    setLecturerSearchQuery('')
+    setLecturerSearchResults([])
+    setSelectedLecturer(null)
+    setIsManualLecturer(false)
   }
 
   const columns = [
@@ -750,17 +792,87 @@ export default function GroupsPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                    NIM Dosen (Admin Grup) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Masukkan NIM Dosen..."
-                    value={createForm.lecturer_nim}
-                    onChange={e => setCreateForm(prev => ({ ...prev, lecturer_nim: e.target.value }))}
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
-                  />
+                <div className="relative">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Dosen (Admin Grup) <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManualLecturer(!isManualLecturer)
+                        setSelectedLecturer(null)
+                        setCreateForm(prev => ({ ...prev, lecturer_nim: '' }))
+                        setLecturerSearchQuery('')
+                      }}
+                      className="text-[10px] font-bold text-primary-600 hover:underline"
+                    >
+                      {isManualLecturer ? 'Cari Nama Dosen' : 'Input NIM Manual'}
+                    </button>
+                  </div>
+
+                  {selectedLecturer ? (
+                    <div className="flex items-center justify-between p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+                      <div>
+                        <p className="text-sm font-bold text-indigo-900">{selectedLecturer.nama}</p>
+                        <p className="text-[10px] text-indigo-500 font-mono">NIM: {selectedLecturer.nim}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedLecturer(null)
+                          setCreateForm(prev => ({ ...prev, lecturer_nim: '' }))
+                        }}
+                        className="text-xs font-bold text-red-500 hover:underline"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : isManualLecturer ? (
+                    <input
+                      type="text"
+                      placeholder="Masukkan NIM Dosen..."
+                      value={createForm.lecturer_nim}
+                      onChange={e => setCreateForm(prev => ({ ...prev, lecturer_nim: e.target.value }))}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                    />
+                  ) : (
+                    <div className="relative">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari nama atau NIM dosen..."
+                        value={lecturerSearchQuery}
+                        onChange={e => setLecturerSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                      />
+                      {isSearchingLecturer && (
+                        <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-primary-500 animate-spin" />
+                      )}
+
+                      {/* Dropdown Suggestions */}
+                      {lecturerSearchResults.length > 0 && (
+                        <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                          {lecturerSearchResults.map(user => (
+                            <button
+                              key={user._id}
+                              type="button"
+                              onClick={() => selectLecturer(user)}
+                              className="w-full px-3 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 text-left"
+                            >
+                              <div className="py-1">
+                                <p className="text-xs font-bold text-slate-800">{user.nama || user.name}</p>
+                                <p className="text-[10px] text-slate-400 font-mono">{user.nim}</p>
+                              </div>
+                              <span className="text-[9px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded capitalize">
+                                {user.role || 'User'}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1.5">
