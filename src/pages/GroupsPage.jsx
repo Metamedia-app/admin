@@ -9,7 +9,16 @@ import Button  from '../components/Button'
 import Modal   from '../components/Modal'
 import Badge   from '../components/Badge'
 import { useToast } from '../context/ToastContext'
-import { groupsApi, usersApi } from '../services/api'
+import { groupsApi, usersApi, chatSyncApi, subjectsApi } from '../services/api'
+
+function extractSubjects(data) {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.subjects)) return data.subjects
+  if (data.data && Array.isArray(data.data.subjects)) return data.data.subjects
+  if (Array.isArray(data.data)) return data.data
+  return []
+}
 
 function extractGroups(data) {
   if (!data) return []
@@ -49,6 +58,24 @@ export default function GroupsPage() {
   
   const [submitting, setSubmitting] = useState(false)
 
+  // Create Group States
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [subjects, setSubjects] = useState([])
+  const [loadingSubjects, setLoadingSubjects] = useState(false)
+  const [createForm, setCreateForm] = useState({
+    subjectIndex: '',
+    lecturer_nim: '',
+    expires_at: ''
+  })
+  const [createSearchQuery, setCreateSearchQuery] = useState('')
+  const [createSearchResults, setCreateSearchResults] = useState([])
+  const [createSelectedUsers, setCreateSelectedUsers] = useState([])
+  const [createIsSearching, setCreateIsSearching] = useState(false)
+  const [createIsBulkMode, setCreateIsBulkMode] = useState(false)
+  const [createBulkInput, setCreateBulkInput] = useState('')
+  const [createIsBulkProcessing, setCreateIsBulkProcessing] = useState(false)
+  const [createSubmitting, setCreateSubmitting] = useState(false)
+
   const fetchGroups = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
@@ -63,7 +90,43 @@ export default function GroupsPage() {
     }
   }, [toast])
 
-  useEffect(() => { fetchGroups() }, [fetchGroups])
+  const fetchSubjects = useCallback(async () => {
+    setLoadingSubjects(true)
+    try {
+      const data = await subjectsApi.getAll()
+      setSubjects(extractSubjects(data))
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal memuat mata kuliah' })
+    } finally {
+      setLoadingSubjects(false)
+    }
+  }, [toast])
+
+  useEffect(() => { 
+    fetchGroups()
+    fetchSubjects()
+  }, [fetchGroups, fetchSubjects])
+
+  // Debounced User Search for Create Group
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (createSearchQuery.length < 3) {
+        setCreateSearchResults([])
+        return
+      }
+      setCreateIsSearching(true)
+      try {
+        const data = await usersApi.search(createSearchQuery, 5)
+        const results = data.data?.users || data.users || []
+        setCreateSearchResults(results)
+      } catch (err) {
+        console.error('Search error:', err)
+      } finally {
+        setCreateIsSearching(false)
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [createSearchQuery])
 
   // Debounced User Search
   useEffect(() => {
@@ -215,6 +278,127 @@ export default function GroupsPage() {
     setBulkInput('')
   }
 
+  const toggleCreateUserSelection = (user) => {
+    const isSelected = createSelectedUsers.some(u => u._id === user._id)
+    if (isSelected) {
+      setCreateSelectedUsers(createSelectedUsers.filter(u => u._id !== user._id))
+    } else {
+      setCreateSelectedUsers([...createSelectedUsers, user])
+    }
+    setCreateSearchQuery('')
+    setCreateSearchResults([])
+  }
+
+  const handleCreateProcessBulk = async () => {
+    if (!createBulkInput.trim()) return
+    
+    const nims = createBulkInput.split(/[,\n\s]+/).filter(nim => nim.trim().length >= 3)
+    const uniqueNims = [...new Set(nims)]
+    
+    setCreateIsBulkProcessing(true)
+    const newUsers = []
+
+    try {
+      for (const nim of uniqueNims) {
+        if (createSelectedUsers.some(u => u.nim === nim)) continue
+
+        try {
+          const data = await usersApi.search(nim.trim(), 1)
+          const results = data.data?.users || data.users || []
+          const exactMatch = results.find(u => u.nim === nim.trim())
+          
+          if (exactMatch) {
+            newUsers.push(exactMatch)
+          } else {
+            newUsers.push({
+              _id: `manual-${nim}`,
+              nim: nim.trim(),
+              nama: `NIM ${nim} (Tidak ditemukan)`,
+              avatar_url: null,
+              isManual: true
+            })
+          }
+        } catch (err) {
+          console.error(`Error fetching NIM ${nim}:`, err)
+          newUsers.push({
+            _id: `err-${nim}`,
+            nim: nim.trim(),
+            nama: `NIM ${nim} (Error)`,
+            isManual: true
+          })
+        }
+      }
+
+      if (newUsers.length > 0) {
+        setCreateSelectedUsers(prev => [...prev, ...newUsers])
+        toast.success(`Berhasil memproses ${newUsers.length} mahasiswa.`)
+      }
+      
+      setCreateBulkInput('')
+      setCreateIsBulkMode(false)
+    } finally {
+      setCreateIsBulkProcessing(false)
+    }
+  }
+
+  const handleCreateGroup = async (e) => {
+    e.preventDefault()
+    
+    if (createForm.subjectIndex === '') {
+      toast.error('Pilih mata kuliah terlebih dahulu.', { title: 'Form Belum Lengkap' })
+      return
+    }
+    if (!createForm.lecturer_nim.trim()) {
+      toast.error('NIM Dosen wajib diisi.', { title: 'Form Belum Lengkap' })
+      return
+    }
+    if (!createForm.expires_at) {
+      toast.error('Tanggal kadaluwarsa wajib diisi.', { title: 'Form Belum Lengkap' })
+      return
+    }
+
+    const selectedSubject = subjects[Number(createForm.subjectIndex)]
+    if (!selectedSubject) {
+      toast.error('Mata kuliah tidak valid.', { title: 'Error' })
+      return
+    }
+
+    setCreateSubmitting(true)
+    try {
+      const payload = {
+        subject_name: selectedSubject.name || selectedSubject.subject_name,
+        subject_code: selectedSubject.code || selectedSubject.subject_code,
+        academic_year: selectedSubject.academic_year,
+        lecturer_nim: createForm.lecturer_nim.trim(),
+        expires_at: new Date(createForm.expires_at).toISOString(),
+        students: createSelectedUsers.map(u => u.nim)
+      }
+      
+      await chatSyncApi.sync(payload)
+      toast.success(`Grup chat "${payload.subject_name}" berhasil dibuat.`, { title: 'Berhasil' })
+      closeCreateModal()
+      fetchGroups(true)
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Membuat Grup' })
+    } finally {
+      setCreateSubmitting(false)
+    }
+  }
+
+  const closeCreateModal = () => {
+    setShowCreateModal(false)
+    setCreateForm({
+      subjectIndex: '',
+      lecturer_nim: '',
+      expires_at: ''
+    })
+    setCreateSearchQuery('')
+    setCreateSearchResults([])
+    setCreateSelectedUsers([])
+    setCreateIsBulkMode(false)
+    setCreateBulkInput('')
+  }
+
   const columns = [
     {
       key: 'name',
@@ -312,9 +496,14 @@ export default function GroupsPage() {
             <h2 className="text-xl font-bold text-slate-800">Grup Chat Matkul</h2>
             <p className="text-sm text-slate-500 mt-0.5">Lihat semua grup dan kelola anggotanya</p>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => fetchGroups(true)} loading={refreshing}>
-            <RefreshCw size={13} /> Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => fetchGroups(true)} loading={refreshing}>
+              <RefreshCw size={13} /> Refresh
+            </Button>
+            <Button variant="primary" size="sm" onClick={() => setShowCreateModal(true)}>
+              <Plus size={14} /> Tambah Grup
+            </Button>
+          </div>
         </div>
 
         <Card padding={false}>
@@ -522,6 +711,205 @@ export default function GroupsPage() {
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Modal Tambah Grup Baru */}
+      {showCreateModal && (
+        <Modal
+          isOpen={showCreateModal}
+          onClose={closeCreateModal}
+          title="Tambah Grup Chat Baru"
+          size="lg"
+        >
+          <form onSubmit={handleCreateGroup} className="p-6 space-y-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Pilih Mata Kuliah <span className="text-red-500">*</span>
+                </label>
+                {loadingSubjects ? (
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <Loader2 size={16} className="animate-spin text-primary-500" />
+                    Memuat mata kuliah...
+                  </div>
+                ) : (
+                  <select
+                    value={createForm.subjectIndex}
+                    onChange={e => setCreateForm(prev => ({ ...prev, subjectIndex: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                  >
+                    <option value="">-- Pilih Mata Kuliah --</option>
+                    {subjects.map((subj, idx) => (
+                      <option key={subj._id || subj.id || idx} value={idx}>
+                        {subj.code || subj.subject_code} - {subj.name || subj.subject_name} ({subj.academic_year})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    NIM Dosen (Admin Grup) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Masukkan NIM Dosen..."
+                    value={createForm.lecturer_nim}
+                    onChange={e => setCreateForm(prev => ({ ...prev, lecturer_nim: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    Tanggal Kedaluwarsa Grup <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={createForm.expires_at}
+                    onChange={e => setCreateForm(prev => ({ ...prev, expires_at: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* Tambah Mahasiswa Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  {createIsBulkMode ? 'Input Masal NIM Mahasiswa' : 'Cari Mahasiswa'}
+                </label>
+                <button 
+                  type="button"
+                  onClick={() => setCreateIsBulkMode(!createIsBulkMode)}
+                  className="text-[10px] font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded-lg transition-colors"
+                >
+                  {createIsBulkMode ? <Search size={12} /> : <Plus size={12} />}
+                  {createIsBulkMode ? 'Pindah ke Cari' : 'Mode Masal (Paste NIM)'}
+                </button>
+              </div>
+
+              {/* Input Section */}
+              {!createIsBulkMode ? (
+                <div className="relative">
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Masukkan NIM atau Nama mahasiswa..."
+                      value={createSearchQuery}
+                      onChange={e => setCreateSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all"
+                    />
+                    {createIsSearching && <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-primary-500 animate-spin" />}
+                  </div>
+
+                  {/* Search Results Dropdown */}
+                  {createSearchResults.length > 0 && (
+                    <div className="absolute z-10 left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden max-h-60 overflow-y-auto">
+                      {createSearchResults.map(user => (
+                        <button
+                          key={user._id}
+                          type="button"
+                          onClick={() => toggleCreateUserSelection(user)}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                        >
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama} 
+                              className="w-8 h-8 rounded-full object-cover border border-slate-100" 
+                              alt="" 
+                            />
+                            <div className="text-left">
+                              <p className="text-sm font-bold text-slate-800">{user.nama}</p>
+                              <p className="text-xs text-slate-400 font-mono">{user.nim}</p>
+                            </div>
+                          </div>
+                          <Plus size={16} className="text-primary-500" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <textarea
+                    placeholder="Tempel daftar NIM di sini (pisahkan dengan koma atau baris baru)...&#10;Contoh:&#10;225501, 225502&#10;225503"
+                    value={createBulkInput}
+                    onChange={e => setCreateBulkInput(e.target.value)}
+                    className="w-full h-32 p-4 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all font-mono"
+                  />
+                  <Button 
+                    type="button"
+                    variant="primary" 
+                    size="sm" 
+                    className="w-full"
+                    loading={createIsBulkProcessing}
+                    disabled={!createBulkInput.trim() || createIsBulkProcessing}
+                    onClick={handleCreateProcessBulk}
+                  >
+                    Proses &amp; Masukkan ke Antrean
+                  </Button>
+                </div>
+              )}
+
+              {/* Selected Members Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Daftar Anggota Grup ({createSelectedUsers.length})</h4>
+                  {createSelectedUsers.length > 0 && (
+                    <button type="button" onClick={() => setCreateSelectedUsers([])} className="text-[10px] font-bold text-red-500 hover:underline">Hapus Semua</button>
+                  )}
+                </div>
+                
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {createSelectedUsers.length === 0 ? (
+                    <div className="py-8 border-2 border-dashed border-slate-100 rounded-2xl flex flex-col items-center justify-center text-slate-300">
+                      <Users size={24} className="mb-2 opacity-20" />
+                      <p className="text-xs">Cari dan pilih mahasiswa di atas</p>
+                    </div>
+                  ) : (
+                    createSelectedUsers.map(user => (
+                      <div key={user._id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <img src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama} className="w-8 h-8 rounded-full border border-white shadow-sm" alt="" />
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">{user.nama}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{user.nim}</p>
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => toggleCreateUserSelection(user)} 
+                          className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-100"
+                          title="Hapus dari daftar"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <Button type="button" variant="secondary" className="flex-1" onClick={closeCreateModal}>Batal</Button>
+              <Button 
+                type="submit" 
+                variant="primary" 
+                className="flex-1" 
+                loading={createSubmitting}
+              >
+                <Plus size={14} /> Buat Grup
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </>

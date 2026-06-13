@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider }         from './context/ToastContext'
+import { NotificationProvider }  from './context/NotificationContext'
 import LoginPage          from './pages/LoginPage'
 import DashboardPage      from './pages/DashboardPage'
 import UsersPage          from './pages/UsersPage'
@@ -26,24 +27,26 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={
-              <PublicRoute><LoginPage /></PublicRoute>
-            } />
-            <Route path="/" element={
-              <ProtectedRoute><AdminLayout /></ProtectedRoute>
-            }>
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard"     element={<DashboardPage />} />
-              <Route path="users"         element={<UsersPage />} />
-              <Route path="reports"       element={<ReportsPage />} />
-              <Route path="posts"         element={<PostsPage />} />
-              <Route path="subjects"      element={<SubjectsPage />} />
-              <Route path="groups"        element={<GroupsPage />} />
-              <Route path="user-management" element={<UserManagementPage />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <NotificationProvider>
+            <Routes>
+              <Route path="/login" element={
+                <PublicRoute><LoginPage /></PublicRoute>
+              } />
+              <Route path="/" element={
+                <ProtectedRoute><AdminLayout /></ProtectedRoute>
+              }>
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard"     element={<DashboardPage />} />
+                <Route path="users"         element={<UsersPage />} />
+                <Route path="reports"       element={<ReportsPage />} />
+                <Route path="posts"         element={<PostsPage />} />
+                <Route path="subjects"      element={<SubjectsPage />} />
+                <Route path="groups"        element={<GroupsPage />} />
+                <Route path="user-management" element={<UserManagementPage />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </NotificationProvider>
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>
