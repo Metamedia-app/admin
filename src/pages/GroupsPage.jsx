@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   Users, Plus, X, RefreshCw, MessageSquare,
-  UserPlus, BookOpen, CalendarDays, Trash2, Search, Loader2, Eye
+  UserPlus, BookOpen, CalendarDays, Trash2, Search, Loader2, Eye, Upload
 } from 'lucide-react'
 import Card    from '../components/Card'
 import Table   from '../components/Table'
@@ -82,6 +82,11 @@ export default function GroupsPage() {
   const [isSearchingLecturer, setIsSearchingLecturer] = useState(false)
   const [selectedLecturer, setSelectedLecturer] = useState(null)
   const [isManualLecturer, setIsManualLecturer] = useState(false)
+
+  // Group Import States
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState(null)
+  const [importing, setImporting] = useState(false)
 
   const fetchGroups = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -441,6 +446,30 @@ export default function GroupsPage() {
     setIsManualLecturer(false)
   }
 
+  const handleImportExcel = async (e) => {
+    e.preventDefault()
+    if (!importFile) {
+      toast.error('Pilih file Excel (.xlsx) terlebih dahulu.', { title: 'File Kosong' })
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', importFile)
+
+    setImporting(true)
+    try {
+      await chatSyncApi.importExcel(formData)
+      toast.success('Grup chat berhasil diimport massal!', { title: 'Berhasil' })
+      setShowImportModal(false)
+      setImportFile(null)
+      fetchGroups(true)
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Import Grup' })
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const columns = [
     {
       key: 'name',
@@ -541,6 +570,9 @@ export default function GroupsPage() {
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => fetchGroups(true)} loading={refreshing}>
               <RefreshCw size={13} /> Refresh
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowImportModal(true)}>
+              <Upload size={13} /> Import Excel
             </Button>
             <Button variant="primary" size="sm" onClick={() => setShowCreateModal(true)}>
               <Plus size={14} /> Tambah Grup
@@ -1019,6 +1051,48 @@ export default function GroupsPage() {
                 loading={createSubmitting}
               >
                 <Plus size={14} /> Buat Grup
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal Import Excel */}
+      {showImportModal && (
+        <Modal
+          isOpen={showImportModal}
+          onClose={() => { setShowImportModal(false); setImportFile(null) }}
+          title="Import Grup Chat Massal"
+          size="md"
+        >
+          <form onSubmit={handleImportExcel} className="p-6 space-y-4">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-600">
+                Pilih Berkas Excel (.xlsx) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept=".xlsx"
+                onChange={e => setImportFile(e.target.files[0])}
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
+              />
+              <p className="text-[11px] text-slate-400">
+                Format Excel harus berisi kolom data yang sesuai untuk sinkronisasi massal.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowImportModal(false); setImportFile(null) }}>
+                Batal
+              </Button>
+              <Button 
+                type="submit" 
+                variant="primary" 
+                className="flex-1" 
+                loading={importing}
+                disabled={!importFile || importing}
+              >
+                <Upload size={14} /> Import Berkas
               </Button>
             </div>
           </form>

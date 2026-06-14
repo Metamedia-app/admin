@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { BookOpen, Plus, X, Hash, CalendarDays, User2, RefreshCw } from 'lucide-react'
+import { BookOpen, Plus, X, Hash, CalendarDays, User2, RefreshCw, Edit, Trash2 } from 'lucide-react'
 import Card from '../components/Card'
 import Table from '../components/Table'
 import Button from '../components/Button'
@@ -26,6 +26,7 @@ export default function SubjectsPage() {
   const [form, setForm] = useState(INITIAL_FORM)
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [editingSubject, setEditingSubject] = useState(null)
 
   const fetchSubjects = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -51,15 +52,33 @@ export default function SubjectsPage() {
     }
     setSubmitting(true)
     try {
-      await subjectsApi.create(form)
-      toast.success('Mata kuliah berhasil ditambahkan!', { title: 'Berhasil' })
+      if (editingSubject) {
+        const id = editingSubject._id || editingSubject.id
+        await subjectsApi.update(id, form)
+        toast.success('Mata kuliah berhasil diperbarui!', { title: 'Berhasil' })
+      } else {
+        await subjectsApi.create(form)
+        toast.success('Mata kuliah berhasil ditambahkan!', { title: 'Berhasil' })
+      }
       setShowModal(false)
       setForm(INITIAL_FORM)
+      setEditingSubject(null)
       fetchSubjects(true)
     } catch (err) {
-      toast.error(err.message, { title: 'Gagal Membuat Matkul' })
+      toast.error(err.message, { title: editingSubject ? 'Gagal Memperbarui Matkul' : 'Gagal Membuat Matkul' })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id, name) => {
+    if (!confirm(`Hapus mata kuliah "${name}"? Tindakan ini tidak dapat dibatalkan.`)) return
+    try {
+      await subjectsApi.delete(id)
+      toast.success(`Mata kuliah "${name}" berhasil dihapus.`)
+      fetchSubjects(true)
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Menghapus Matkul' })
     }
   }
 
@@ -111,6 +130,41 @@ export default function SubjectsPage() {
         </span>
       ),
     },
+    {
+      key: 'actions',
+      label: 'Aksi',
+      render: (row) => {
+        const id = row._id || row.id
+        const name = row.name || row.subject_name || 'Matkul'
+        return (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setEditingSubject(row)
+                setForm({
+                  code: row.code || row.subject_code || '',
+                  name: row.name || row.subject_name || '',
+                  academic_year: row.academic_year || '',
+                  lecturer_name: row.lecturer_name || '',
+                })
+                setShowModal(true)
+              }}
+            >
+              <Edit size={13} /> Edit
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => handleDelete(id, name)}
+            >
+              <Trash2 size={13} /> Hapus
+            </Button>
+          </div>
+        )
+      }
+    }
   ]
 
   return (
@@ -145,8 +199,13 @@ export default function SubjectsPage() {
         </Card>
       </div>
 
-      {/* Modal Tambah Matkul */}
-      <Modal isOpen={showModal} onClose={() => { setShowModal(false); setForm(INITIAL_FORM) }} title="Tambah Mata Kuliah Baru" size="lg">
+      {/* Modal Tambah/Edit Matkul */}
+      <Modal 
+        isOpen={showModal} 
+        onClose={() => { setShowModal(false); setForm(INITIAL_FORM); setEditingSubject(null) }} 
+        title={editingSubject ? "Edit Mata Kuliah" : "Tambah Mata Kuliah Baru"} 
+        size="lg"
+      >
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -200,11 +259,12 @@ export default function SubjectsPage() {
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowModal(false); setForm(INITIAL_FORM) }}>
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowModal(false); setForm(INITIAL_FORM); setEditingSubject(null) }}>
               Batal
             </Button>
             <Button type="submit" variant="primary" className="flex-1" loading={submitting}>
-              <Plus size={14} /> Tambah Matkul
+              {editingSubject ? <Edit size={14} /> : <Plus size={14} />} 
+              {editingSubject ? ' Simpan Perubahan' : ' Tambah Matkul'}
             </Button>
           </div>
         </form>

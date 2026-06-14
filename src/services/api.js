@@ -24,7 +24,7 @@ async function request(endpoint, options = {}) {
   }
 
   // Fastify menolak request tanpa body jika Content-Type diset application/json
-  if (options.body && !headers['Content-Type']) {
+  if (options.body && !headers['Content-Type'] && !(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
 
@@ -55,8 +55,8 @@ async function request(endpoint, options = {}) {
 
     if (!res.ok) {
       const message =
-        (typeof body === 'object' ? body?.message ?? body?.error : body) ??
-        `Request gagal (${res.status})`
+          (typeof body === 'object' ? body?.message ?? body?.error : body) ??
+          `Request gagal (${res.status})`
       const err = new Error(message)
       err.status = res.status
       throw err
@@ -75,6 +75,7 @@ async function request(endpoint, options = {}) {
 const http = {
   get:   (ep, opts = {}) => request(ep, { method: 'GET', ...opts }),
   post:  (ep, body, opts = {}) => request(ep, { method: 'POST', body: JSON.stringify(body ?? {}), ...opts }),
+  put:   (ep, body, opts = {}) => request(ep, { method: 'PUT', body: JSON.stringify(body ?? {}), ...opts }),
   patch: (ep, body, opts = {}) => request(ep, { method: 'PATCH', body: JSON.stringify(body ?? {}), ...opts }),
   del:   (ep, opts = {}) => request(ep, { method: 'DELETE', ...opts }),
 }
@@ -143,6 +144,12 @@ export const usersApi = {
 
   /** Buat akun user / admin / dosen baru */
   create: (body) => http.post('/api/v1/admin/users', body),
+
+  /** Edit akun user */
+  update: (id, body) => http.put(`/api/v1/admin/users/${id}`, body),
+
+  /** Import user massal via excel */
+  importExcel: (formData) => request('/api/v1/admin/users/import', { method: 'POST', body: formData }),
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -178,6 +185,12 @@ export const subjectsApi = {
 
   /** Buat mata kuliah baru */
   create: (body) => http.post('/api/v1/admin/subjects', body),
+
+  /** Edit mata kuliah */
+  update: (id, body) => http.put(`/api/v1/admin/subjects/${id}`, body),
+
+  /** Hapus mata kuliah */
+  delete: (id) => http.del(`/api/v1/admin/subjects/${id}`),
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -211,4 +224,7 @@ export const groupsApi = {
 export const chatSyncApi = {
   /** Sinkronisasi daftar mahasiswa ke grup matkul (Batch) */
   sync: (body) => http.post('/api/v1/chat-matkul/sync', body),
+
+  /** Import grup matkul massal via excel */
+  importExcel: (formData) => request('/api/v1/chat-matkul/import', { method: 'POST', body: formData }),
 }

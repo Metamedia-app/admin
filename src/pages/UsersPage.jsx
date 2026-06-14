@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, UserX, UserCheck, Users, AlertTriangle, Shield, SearchX } from 'lucide-react'
+import { Search, UserX, UserCheck, Users, AlertTriangle, Shield, SearchX, Edit, Upload } from 'lucide-react'
 import Card         from '../components/Card'
 import Table        from '../components/Table'
 import Button       from '../components/Button'
 import Badge        from '../components/Badge'
 import ConfirmModal from '../components/ConfirmModal'
 import Pagination   from '../components/Pagination'
+import Modal        from '../components/Modal'
 import { useToast } from '../context/ToastContext'
-import { usersApi } from '../services/api'
+import { usersApi, majorsApi } from '../services/api'
 
 // ─── Normalizer ────────────────────────────────────────────────────────────────
 function normalizeUser(u) {
@@ -72,6 +73,37 @@ export default function UsersPage() {
   const [error, setError]         = useState(null)
   const [confirm, setConfirm]     = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  // Edit and Import States
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState(null)
+  const [importing, setImporting] = useState(false)
+
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [editForm, setEditForm] = useState({
+    nama: '',
+    email: '',
+    program_studi: '',
+    status_mahasiswa: 'AKTIF',
+    role: 'user',
+    password: ''
+  })
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [majors, setMajors] = useState([])
+
+  useEffect(() => {
+    const fetchMajors = async () => {
+      try {
+        const data = await majorsApi.getAll()
+        const list = data?.data ?? data ?? []
+        setMajors(Array.isArray(list) ? list : [])
+      } catch (err) {
+        console.error('Error fetching majors:', err)
+      }
+    }
+    fetchMajors()
+  }, [])
   
   // Pagination state
   const [page, setPage] = useState(1)
@@ -139,6 +171,96 @@ export default function UsersPage() {
     }
   }
 
+  const handleImportExcel = async (e) => {
+    e.preventDefault()
+    if (!importFile) {
+      toast.error('Pilih file Excel (.xlsx) terlebih dahulu.', { title: 'File Kosong' })
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', importFile)
+
+    setImporting(true)
+    try {
+      await usersApi.importExcel(formData)
+      toast.success('Daftar pengguna berhasil diimport massal!', { title: 'Berhasil' })
+      setShowImportModal(false)
+      setImportFile(null)
+      setPage(1)
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Import User' })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const openEditModal = (user) => {
+    const raw = user.raw || {}
+    let normalizedRole = raw.role || 'mahasiswa'
+    if (normalizedRole === 'user') normalizedRole = 'mahasiswa'
+
+    let normalizedStatus = raw.status_mahasiswa || 'AKTIF'
+    if (normalizedStatus === 'TIDAK AKTIF') normalizedStatus = 'TIDAK_AKTIF'
+
+    setEditingUser(user)
+    setEditForm({
+      nama: raw.nama || raw.name || user.name || '',
+      email: raw.email || '',
+      program_studi: raw.program_studi || '',
+      status_mahasiswa: normalizedStatus,
+      role: normalizedRole,
+      password: ''
+    })
+    setShowEditModal(true)
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    if (!editForm.nama.trim()) {
+      toast.error('Nama wajib diisi.', { title: 'Form Tidak Lengkap' })
+      return
+    }
+
+    setEditSubmitting(true)
+    try {
+      const body = {
+        nama: editForm.nama.trim(),
+        email: editForm.email.trim(),
+        program_studi: editForm.program_studi,
+        status_mahasiswa: editForm.status_mahasiswa,
+        role: editForm.role
+      }
+      if (editForm.password.trim()) {
+        body.password = editForm.password.trim()
+      }
+
+      await usersApi.update(editingUser.id, body)
+      toast.success(`Akun "${body.nama}" berhasil diperbarui!`, { title: 'Berhasil' })
+      setShowEditModal(false)
+      setEditingUser(null)
+      
+      setUsers(prev => prev.map(u => {
+        if (u.id === editingUser.id) {
+          const updatedRaw = { 
+            ...u.raw, 
+            nama: body.nama, 
+            email: body.email, 
+            program_studi: body.program_studi, 
+            status_mahasiswa: body.status_mahasiswa, 
+            role: body.role 
+          }
+          return normalizeUser(updatedRaw)
+        }
+        return u
+      }))
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Memperbarui Akun' })
+    } finally {
+      setEditSubmitting(false)
+    }
+  }
+
   const activeCount = users.filter(u => u.status === 'active').length
   const bannedCount = users.filter(u => u.status === 'banned').length
 
@@ -202,16 +324,22 @@ export default function UsersPage() {
     {
       key: 'actions',
       label: 'Aksi',
-      render: (row) =>
-        row.status === 'banned' ? (
-          <Button variant="success" size="sm" onClick={() => openConfirm(row, 'unban')}>
-            <UserCheck size={13} /> Unban
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => openEditModal(row)}>
+            <Edit size={13} /> Edit
           </Button>
-        ) : (
-          <Button variant="danger" size="sm" onClick={() => openConfirm(row, 'ban')}>
-            <UserX size={13} /> Ban
-          </Button>
-        ),
+          {row.status === 'banned' ? (
+            <Button variant="success" size="sm" onClick={() => openConfirm(row, 'unban')}>
+              <UserCheck size={13} /> Unban
+            </Button>
+          ) : (
+            <Button variant="danger" size="sm" onClick={() => openConfirm(row, 'ban')}>
+              <UserX size={13} /> Ban
+            </Button>
+          )}
+        </div>
+      ),
     },
   ]
 
@@ -238,16 +366,21 @@ export default function UsersPage() {
               Cari dan kelola akun pengguna platform
             </p>
           </div>
-          {hasSearched && users.length > 0 && (
-            <div className="flex gap-2">
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                <Users size={13} /> {activeCount} Aktif
-              </span>
-              <span className="bg-red-50 text-red-700 border border-red-100 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
-                <UserX size={13} /> {bannedCount} Dibanned
-              </span>
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {hasSearched && users.length > 0 && (
+              <>
+                <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <Users size={13} /> {activeCount} Aktif
+                </span>
+                <span className="bg-red-50 text-red-700 border border-red-100 text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                  <UserX size={13} /> {bannedCount} Dibanned
+                </span>
+              </>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => setShowImportModal(true)}>
+              <Upload size={13} /> Import Excel
+            </Button>
+          </div>
         </div>
 
         <Card padding={false}>
@@ -327,6 +460,158 @@ export default function UsersPage() {
         }
         confirmLabel={confirm?.action === 'ban' ? 'Ya, Ban User' : 'Ya, Unban User'}
       />
+
+      {/* Modal Edit Pengguna */}
+      {showEditModal && editingUser && (
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => { setShowEditModal(false); setEditingUser(null) }}
+          title={`Edit Akun User: ${editingUser.name}`}
+          size="lg"
+        >
+          <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Nama Lengkap <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Masukkan nama lengkap..."
+                value={editForm.nama}
+                onChange={e => setEditForm(prev => ({ ...prev, nama: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Email
+              </label>
+              <input
+                type="email"
+                placeholder="Masukkan email..."
+                value={editForm.email}
+                onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Role <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editForm.role}
+                  onChange={e => setEditForm(prev => ({ ...prev, role: e.target.value }))}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                >
+                  <option value="mahasiswa">Mahasiswa</option>
+                  <option value="dosen">Dosen</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                  Status Mahasiswa <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editForm.status_mahasiswa}
+                  onChange={e => setEditForm(prev => ({ ...prev, status_mahasiswa: e.target.value }))}
+                  className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                >
+                  <option value="AKTIF">Aktif</option>
+                  <option value="TIDAK_AKTIF">Tidak Aktif</option>
+                  <option value="ALUMNI">Alumni (Otomatis Sinkron Grup Alumni)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Program Studi
+              </label>
+              <select
+                value={editForm.program_studi}
+                onChange={e => setEditForm(prev => ({ ...prev, program_studi: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+              >
+                <option value="">-- Pilih Program Studi --</option>
+                {majors.map(m => (
+                  <option key={m._id || m.id} value={m.name}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Ubah Password <span className="text-slate-400 font-normal">(opsional)</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Kosongkan jika tidak ingin mengganti password..."
+                value={editForm.password}
+                onChange={e => setEditForm(prev => ({ ...prev, password: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowEditModal(false); setEditingUser(null) }}>
+                Batal
+              </Button>
+              <Button type="submit" variant="primary" className="flex-1" loading={editSubmitting}>
+                <Edit size={14} /> Simpan Perubahan
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Modal Import Excel */}
+      {showImportModal && (
+        <Modal
+          isOpen={showImportModal}
+          onClose={() => { setShowImportModal(false); setImportFile(null) }}
+          title="Import User Massal via Excel"
+          size="md"
+        >
+          <form onSubmit={handleImportExcel} className="p-6 space-y-4">
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold text-slate-600">
+                Pilih Berkas Excel (.xlsx) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="file"
+                accept=".xlsx"
+                onChange={e => setImportFile(e.target.files[0])}
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Format kolom berkas Excel (.xlsx): <strong>nim, nama, email, password, role, program_studi, status_mahasiswa</strong>.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-4 border-t border-slate-100">
+              <Button type="button" variant="secondary" className="flex-1" onClick={() => { setShowImportModal(false); setImportFile(null) }}>
+                Batal
+              </Button>
+              <Button 
+                type="submit" 
+                variant="primary" 
+                className="flex-1" 
+                loading={importing}
+                disabled={!importFile || importing}
+              >
+                <Upload size={14} /> Import Berkas
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </>
   )
 }
