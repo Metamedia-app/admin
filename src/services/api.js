@@ -215,6 +215,9 @@ export const groupsApi = {
   /** Keluarkan satu mahasiswa dari grup */
   kickMember: (conversationId, userId) =>
     http.del(`/api/v1/admin/groups/${conversationId}/members/${userId}`),
+
+  /** Hapus grup chat matkul beserta avatarnya */
+  delete: (groupId) => http.del(`/api/v1/chat-matkul/${groupId}`),
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

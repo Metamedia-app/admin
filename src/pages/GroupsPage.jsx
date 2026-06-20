@@ -596,6 +596,17 @@ export default function GroupsPage() {
     }
   }
 
+  const handleDeleteGroup = async (id, name) => {
+    if (!confirm(`Hapus grup chat "${name}" beserta avatarnya? Tindakan ini tidak dapat dibatalkan.`)) return
+    try {
+      await groupsApi.delete(id)
+      toast.success(`Grup chat "${name}" berhasil dihapus beserta avatarnya.`)
+      fetchGroups(true)
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Menghapus Grup' })
+    }
+  }
+
   const columns = [
     {
       key: 'name',
@@ -678,6 +689,13 @@ export default function GroupsPage() {
               onClick={() => setSelectedGroup({ id, name })}
             >
               <UserPlus size={13} /> Tambah
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => handleDeleteGroup(id, name)}
+            >
+              <Trash2 size={13} /> Hapus
             </Button>
           </div>
         )
