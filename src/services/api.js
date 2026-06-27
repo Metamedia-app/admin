@@ -29,7 +29,8 @@ async function request(endpoint, options = {}) {
   }
 
   try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, {
+    const cleanBaseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
+    const res = await fetch(`${cleanBaseUrl}${endpoint}`, {
       ...options,
       headers,
     })
@@ -59,9 +60,14 @@ async function request(endpoint, options = {}) {
     }
 
     if (!res.ok) {
-      const message =
+      let message =
           (typeof body === 'object' ? body?.message ?? body?.error : body) ??
           `Request gagal (${res.status})`
+
+      if (typeof message === 'string' && message.includes('Route ')) {
+        message = 'Endpoint tidak ditemukan atau tidak valid (404)'
+      }
+
       const err = new Error(message)
       err.status = res.status
       throw err
