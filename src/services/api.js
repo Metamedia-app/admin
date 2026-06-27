@@ -47,6 +47,11 @@ async function request(endpoint, options = {}) {
     // Parse body (try JSON first)
     let body = null
     const contentType = res.headers.get('content-type') ?? ''
+    
+    if (options.isBlob || contentType.includes('application/pdf')) {
+      return await res.blob()
+    }
+    
     if (contentType.includes('application/json')) {
       body = await res.json()
     } else {
@@ -163,6 +168,9 @@ export const majorsApi = {
 
   /** Tambah program studi baru */
   create: (body) => http.post('/api/v1/admin/majors', body),
+
+  /** Edit program studi */
+  update: (id, body) => http.put(`/api/v1/admin/majors/${id}`, body),
 }
 
 export const reportsApi = {
@@ -181,7 +189,13 @@ export const reportsApi = {
 // ═════════════════════════════════════════════════════════════════════════════
 export const subjectsApi = {
   /** Ambil semua mata kuliah */
-  getAll: () => http.get('/api/v1/admin/subjects'),
+  getAll: (code_prodi) => {
+    let url = '/api/v1/admin/subjects'
+    if (code_prodi) {
+      url += `?code_prodi=${encodeURIComponent(code_prodi)}`
+    }
+    return http.get(url)
+  },
 
   /** Buat mata kuliah baru */
   create: (body) => http.post('/api/v1/admin/subjects', body),
@@ -218,6 +232,10 @@ export const groupsApi = {
 
   /** Hapus grup chat matkul beserta avatarnya */
   delete: (groupId) => http.del(`/api/v1/chat-matkul/${groupId}`),
+
+  /** Download laporan analitik PDF */
+  downloadAnalyticsPdf: (conversationId) => 
+    request(`/api/v1/admin/groups/${conversationId}/analytics/pdf`, { method: 'GET', isBlob: true }),
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

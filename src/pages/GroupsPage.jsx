@@ -10,7 +10,7 @@ import Button  from '../components/Button'
 import Modal   from '../components/Modal'
 import Badge   from '../components/Badge'
 import { useToast } from '../context/ToastContext'
-import { groupsApi, usersApi, chatSyncApi, subjectsApi } from '../services/api'
+import { groupsApi, usersApi, chatSyncApi, subjectsApi, majorsApi } from '../services/api'
 
 function extractSubjects(data) {
   if (!data) return []
@@ -63,10 +63,15 @@ export default function GroupsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [subjects, setSubjects] = useState([])
   const [loadingSubjects, setLoadingSubjects] = useState(false)
+  const [majors, setMajors] = useState([])
+  const [loadingMajors, setLoadingMajors] = useState(false)
   const [createForm, setCreateForm] = useState({
     subjectIndex: '',
     lecturer_nim: '',
-    expires_at: ''
+    expires_at: '',
+    code_prodi: '',
+    kelas: '',
+    academic_year: ''
   })
   const [createSearchQuery, setCreateSearchQuery] = useState('')
   const [createSearchResults, setCreateSearchResults] = useState([])
@@ -104,10 +109,10 @@ export default function GroupsPage() {
     }
   }, [toast])
 
-  const fetchSubjects = useCallback(async () => {
+  const fetchSubjects = useCallback(async (codeProdi = '') => {
     setLoadingSubjects(true)
     try {
-      const data = await subjectsApi.getAll()
+      const data = await subjectsApi.getAll(codeProdi)
       setSubjects(extractSubjects(data))
     } catch (err) {
       toast.error(err.message, { title: 'Gagal memuat mata kuliah' })
@@ -116,10 +121,24 @@ export default function GroupsPage() {
     }
   }, [toast])
 
+  const fetchMajors = useCallback(async () => {
+    setLoadingMajors(true)
+    try {
+      const data = await majorsApi.getAll()
+      const list = data?.data ?? data ?? []
+      setMajors(Array.isArray(list) ? list : [])
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal memuat prodi' })
+    } finally {
+      setLoadingMajors(false)
+    }
+  }, [toast])
+
   useEffect(() => { 
     fetchGroups()
+    fetchMajors()
     fetchSubjects()
-  }, [fetchGroups, fetchSubjects])
+  }, [fetchGroups, fetchMajors, fetchSubjects])
 
   // Debounced User Search for Create Group
   useEffect(() => {
@@ -403,7 +422,9 @@ export default function GroupsPage() {
       const payload = {
         subject_name: selectedSubject.name || selectedSubject.subject_name,
         subject_code: selectedSubject.code || selectedSubject.subject_code,
-        academic_year: selectedSubject.academic_year,
+        academic_year: createForm.academic_year.trim(),
+        code_prodi: createForm.code_prodi,
+        kelas: createForm.kelas.trim(),
         lecturer_nim: createForm.lecturer_nim.trim(),
         expires_at: new Date(createForm.expires_at).toISOString(),
         students: createSelectedUsers.map(u => u.nim)
@@ -435,7 +456,8 @@ export default function GroupsPage() {
     setCreateForm({
       subjectIndex: '',
       lecturer_nim: '',
-      expires_at: ''
+      expires_at: '',
+      academic_year: ''
     })
     setCreateSearchQuery('')
     setCreateSearchResults([])
@@ -942,6 +964,65 @@ export default function GroupsPage() {
         >
           <form onSubmit={handleCreateGroup} className="p-6 space-y-6">
             <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    Program Studi <span className="text-red-500">*</span>
+                  </label>
+                  {loadingMajors ? (
+                    <div className="flex items-center gap-2 text-sm text-slate-400 py-2.5 px-3 border border-slate-200 rounded-xl bg-slate-50">
+                      <Loader2 size={14} className="animate-spin" /> Memuat prodi...
+                    </div>
+                  ) : (
+                    <select
+                      value={createForm.code_prodi}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setCreateForm(prev => ({ ...prev, code_prodi: val, subjectIndex: '' }));
+                        fetchSubjects(val);
+                      }}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all appearance-none"
+                      required
+                    >
+                      <option value="">-- Pilih Program Studi --</option>
+                      {majors.map(m => (
+                        <option key={m._id || m.id} value={m.code_prodi || m.name}>
+                          {m.code_prodi ? `[${m.code_prodi}] ` : ''}{m.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    Kelas <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="cth: 1A"
+                    value={createForm.kelas}
+                    onChange={e => setCreateForm(prev => ({ ...prev, kelas: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                    Tahun Akademik <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="cth: 2024/2025"
+                    value={createForm.academic_year}
+                    onChange={e => setCreateForm(prev => ({ ...prev, academic_year: e.target.value }))}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+                    required
+                  />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Pilih Mata Kuliah <span className="text-red-500">*</span>
@@ -960,7 +1041,7 @@ export default function GroupsPage() {
                     <option value="">-- Pilih Mata Kuliah --</option>
                     {subjects.map((subj, idx) => (
                       <option key={subj._id || subj.id || idx} value={idx}>
-                        {subj.code || subj.subject_code} - {subj.name || subj.subject_name} ({subj.academic_year})
+                        {subj.code || subj.subject_code} - {subj.name || subj.subject_name} {subj.curriculum_year ? `(Kurikulum: ${subj.curriculum_year})` : ''}
                       </option>
                     ))}
                   </select>
@@ -1221,7 +1302,7 @@ export default function GroupsPage() {
                 className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 cursor-pointer"
               />
               <p className="text-[11px] text-slate-400">
-                Format Excel harus berisi kolom data yang sesuai untuk sinkronisasi massal.
+                Format Excel wajib memiliki kolom <strong>academic_year</strong>, <strong>kelas</strong>, dan <strong>code_prodi</strong> untuk menghindari tabrakan antar angkatan.
               </p>
             </div>
 

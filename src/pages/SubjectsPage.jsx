@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { BookOpen, Plus, X, Hash, CalendarDays, User2, RefreshCw, Edit, Trash2 } from 'lucide-react'
+import { BookOpen, Plus, X, Hash, CalendarDays, User2, RefreshCw, Edit, Trash2, Loader2 } from 'lucide-react'
 import Card from '../components/Card'
 import Table from '../components/Table'
 import Button from '../components/Button'
 import Modal from '../components/Modal'
 import { useToast } from '../context/ToastContext'
-import { subjectsApi } from '../services/api'
+import { subjectsApi, majorsApi } from '../services/api'
 
 function extractSubjects(data) {
   if (!data) return []
@@ -16,11 +16,13 @@ function extractSubjects(data) {
   return []
 }
 
-const INITIAL_FORM = { code: '', name: '', academic_year: '', lecturer_name: '' }
+const INITIAL_FORM = { code: '', name: '', lecturer_name: '', curriculum_year: '', sks: '', semester: '', code_prodi: '' }
 
 export default function SubjectsPage() {
   const toast = useToast()
   const [subjects, setSubjects] = useState([])
+  const [majors, setMajors] = useState([])
+  const [loadingMajors, setLoadingMajors] = useState(true)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState(INITIAL_FORM)
@@ -42,12 +44,28 @@ export default function SubjectsPage() {
     }
   }, [toast])
 
-  useEffect(() => { fetchSubjects() }, [fetchSubjects])
+  const fetchMajors = useCallback(async () => {
+    setLoadingMajors(true)
+    try {
+      const data = await majorsApi.getAll()
+      const list = data?.data ?? data ?? []
+      setMajors(Array.isArray(list) ? list : [])
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal memuat jurusan' })
+    } finally {
+      setLoadingMajors(false)
+    }
+  }, [toast])
+
+  useEffect(() => { 
+    fetchSubjects()
+    fetchMajors()
+  }, [fetchSubjects, fetchMajors])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.code || !form.name || !form.academic_year) {
-      toast.error('Kode, Nama, dan Tahun Akademik wajib diisi.', { title: 'Form Tidak Lengkap' })
+    if (!form.code || !form.name || !form.curriculum_year) {
+      toast.error('Kode, Nama, dan Tahun Kurikulum wajib diisi.', { title: 'Form Tidak Lengkap' })
       return
     }
     setSubmitting(true)
@@ -112,12 +130,30 @@ export default function SubjectsPage() {
       ),
     },
     {
-      key: 'academic_year',
-      label: 'Tahun Akademik',
+      key: 'code_prodi',
+      label: 'Prodi',
       render: (row) => (
-        <span className="flex items-center gap-1.5 text-sm text-slate-600">
+        <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+          {row.code_prodi || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'sks_semester',
+      label: 'SKS / Smt',
+      render: (row) => (
+        <span className="text-sm text-slate-600">
+          {row.sks ? `${row.sks} SKS` : '-'} / Smt {row.semester || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'curriculum_year',
+      label: 'Tahun Kurikulum',
+      render: (row) => (
+        <span className="flex items-center gap-1.5 text-sm text-slate-600 font-medium">
           <CalendarDays size={13} className="text-slate-400" />
-          {row.academic_year || '-'}
+          {row.curriculum_year || '-'}
         </span>
       ),
     },
@@ -146,8 +182,11 @@ export default function SubjectsPage() {
                 setForm({
                   code: row.code || row.subject_code || '',
                   name: row.name || row.subject_name || '',
-                  academic_year: row.academic_year || '',
                   lecturer_name: row.lecturer_name || '',
+                  curriculum_year: row.curriculum_year || '',
+                  sks: row.sks || '',
+                  semester: row.semester || '',
+                  code_prodi: row.code_prodi || '',
                 })
                 setShowModal(true)
               }}
@@ -222,13 +261,13 @@ export default function SubjectsPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                Tahun Akademik <span className="text-red-500">*</span>
+                Tahun Kurikulum <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                placeholder="cth: 2024/2025"
-                value={form.academic_year}
-                onChange={e => setForm(f => ({ ...f, academic_year: e.target.value }))}
+                placeholder="cth: 2025"
+                value={form.curriculum_year}
+                onChange={e => setForm(f => ({ ...f, curriculum_year: e.target.value }))}
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
               />
             </div>
@@ -245,6 +284,59 @@ export default function SubjectsPage() {
               className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
             />
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Program Studi <span className="text-slate-400 font-normal">(opsional)</span>
+            </label>
+            {loadingMajors ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400 py-2.5 px-3 border border-slate-200 rounded-xl bg-slate-50">
+                <Loader2 size={14} className="animate-spin" /> Memuat daftar prodi...
+              </div>
+            ) : (
+              <select
+                value={form.code_prodi}
+                onChange={e => setForm(f => ({ ...f, code_prodi: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all appearance-none"
+              >
+                <option value="">— Pilih Program Studi —</option>
+                {majors.map(m => (
+                  <option key={m._id || m.id} value={m.code_prodi || m.name}>
+                    {m.code_prodi ? `[${m.code_prodi}] ` : ''}{m.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Jumlah SKS <span className="text-slate-400 font-normal">(opsional)</span>
+              </label>
+              <input
+                type="number"
+                placeholder="cth: 3"
+                value={form.sks}
+                onChange={e => setForm(f => ({ ...f, sks: e.target.value ? parseInt(e.target.value) : '' }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Semester <span className="text-slate-400 font-normal">(opsional)</span>
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="8"
+                placeholder="cth: 1"
+                value={form.semester}
+                onChange={e => setForm(f => ({ ...f, semester: e.target.value ? parseInt(e.target.value) : '' }))}
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary-400 focus:bg-white transition-all"
+              />
+            </div>
+          </div>
+          
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5">
               Nama Dosen <span className="text-slate-400 font-normal">(opsional)</span>

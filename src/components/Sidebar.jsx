@@ -21,11 +21,13 @@ const mainNavItems = [
 
 const adminNavItems = [
   { to: '/user-management', icon: UserCog,       label: 'Manajemen User' },
+  { to: '/majors',          icon: GraduationCap, label: 'Program Studi' },
 ]
 
 const matkulNavItems = [
-  { to: '/subjects',  icon: BookOpen,        label: 'Mata Kuliah' },
-  { to: '/groups',    icon: MessagesSquare,  label: 'Grup Chat' },
+  { to: '/subjects',      icon: BookOpen,        label: 'Mata Kuliah' },
+  { to: '/groups',        icon: MessagesSquare,  label: 'Grup Chat' },
+  { to: '/group-reports', icon: FileText,        label: 'Laporan Tugas' },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {

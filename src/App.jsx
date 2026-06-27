@@ -10,6 +10,8 @@ import PostsPage          from './pages/PostsPage'
 import SubjectsPage       from './pages/SubjectsPage'
 import GroupsPage         from './pages/GroupsPage'
 import UserManagementPage from './pages/UserManagementPage'
+import MajorsPage         from './pages/MajorsPage'
+import GroupReportsPage   from './pages/GroupReportsPage'
 import AdminLayout        from './layouts/AdminLayout'
 
 function ProtectedRoute({ children }) {
@@ -42,6 +44,8 @@ export default function App() {
                 <Route path="posts"         element={<PostsPage />} />
                 <Route path="subjects"      element={<SubjectsPage />} />
                 <Route path="groups"        element={<GroupsPage />} />
+                <Route path="majors"        element={<MajorsPage />} />
+                <Route path="group-reports" element={<GroupReportsPage />} />
                 <Route path="user-management" element={<UserManagementPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
