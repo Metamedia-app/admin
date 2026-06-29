@@ -101,6 +101,15 @@ export const authApi = {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// 📊 Dashboard
+// GET  /api/v1/admin/dashboard?range=
+// ═════════════════════════════════════════════════════════════════════════════
+export const dashboardApi = {
+  /** Ambil ringkasan statistik dan chart (range: 7 atau 30) */
+  getStats: (range = 7) => http.get(`/api/v1/admin/dashboard?range=${range}`),
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // 📝 Posts
 // GET  /api/v1/admin/posts
 // POST /api/v1/admin/posts/:id/takedown

@@ -9,6 +9,7 @@ import Modal        from '../components/Modal'
 import PostPreview  from '../components/PostPreview'
 import Pagination   from '../components/Pagination'
 import { useToast } from '../context/ToastContext'
+import { useNotifications } from '../context/NotificationContext'
 import { reportsApi, postsApi } from '../services/api'
 
 // ─── Normalizer Report ──────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ function extractArray(data) {
 
 export default function ReportsPage() {
   const toast = useToast()
+  const { socket } = useNotifications()
   const location = useLocation()
   // ID laporan yang diklik dari notif — untuk buka modal langsung
   const highlightId = location.state?.highlightId ?? null
@@ -96,6 +98,24 @@ export default function ReportsPage() {
 
   useEffect(() => { fetchReports() }, [fetchReports])
 
+  // ─── Listen for Real-time Reports ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket) return
+
+    const handleNewReport = () => {
+      // Auto-refresh reports list on new report
+      fetchReports(true)
+    }
+
+    socket.on('new_report', handleNewReport)
+    socket.on('content_flagged', handleNewReport)
+
+    return () => {
+      socket.off('new_report', handleNewReport)
+      socket.off('content_flagged', handleNewReport)
+    }
+  }, [socket, fetchReports])
+
   // ─── Jika datang dari klik notif, atur filter & cari laporan ─────────────────
   useEffect(() => {
     if (highlightId && !highlightHandled.current) {
@@ -104,7 +124,6 @@ export default function ReportsPage() {
       setFilter('all')
       setPage(1)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlightId])
 
   // Setelah data load, cari laporan berdasarkan highlightId

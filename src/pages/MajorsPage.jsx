@@ -7,6 +7,21 @@ import Modal   from '../components/Modal'
 import { useToast } from '../context/ToastContext'
 import { majorsApi } from '../services/api'
 
+function getAvatarProps(name) {
+  const colors = [
+    'from-blue-500 to-cyan-400 shadow-blue-500/30',
+    'from-violet-500 to-fuchsia-400 shadow-violet-500/30',
+    'from-emerald-500 to-teal-400 shadow-emerald-500/30',
+    'from-orange-500 to-amber-400 shadow-orange-500/30',
+    'from-pink-500 to-rose-400 shadow-pink-500/30',
+    'from-indigo-500 to-indigo-400 shadow-indigo-500/30'
+  ]
+  const cleanName = (name || 'Prodi').trim()
+  const charCode = cleanName.charCodeAt(0) || 0
+  const color = colors[charCode % colors.length]
+  return { color }
+}
+
 export default function MajorsPage() {
   const toast = useToast()
 
@@ -63,34 +78,35 @@ export default function MajorsPage() {
     {
       key: 'name',
       label: 'Program Studi',
-      render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-            <GraduationCap size={16} className="text-indigo-500" />
+      render: (row) => {
+        const avatar = getAvatarProps(row.name)
+        return (
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${avatar.color} flex items-center justify-center flex-shrink-0 shadow-lg text-white`}>
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <p className="font-bold text-slate-800 text-[13px]">{row.name || '-'}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-slate-800">{row.name || '-'}</p>
-            {row.faculty && (
-              <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                <Building2 size={10} /> {row.faculty}
-              </p>
-            )}
-          </div>
-        </div>
-      ),
+        )
+      },
     },
     {
       key: 'faculty',
       label: 'Fakultas',
       render: (row) => (
-        <span className="text-sm text-slate-600">{row.faculty || '—'}</span>
+        <div className="flex items-center gap-1.5">
+          <Building2 size={14} className="text-slate-400" />
+          <span className="text-xs font-medium text-slate-600">{row.faculty || '—'}</span>
+        </div>
       ),
     },
     {
       key: 'code_prodi',
       label: 'Kode Prodi',
       render: (row) => (
-        <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+        <span className="inline-flex font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md shadow-sm tracking-widest">
           {row.code_prodi || '—'}
         </span>
       ),
@@ -99,7 +115,11 @@ export default function MajorsPage() {
       key: 'singkatan',
       label: 'Singkatan',
       render: (row) => (
-        <span className="text-sm text-slate-600">{row.singkatan || '—'}</span>
+        row.singkatan ? (
+          <span className="inline-flex text-[10px] font-bold uppercase tracking-wider text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md shadow-sm">
+            {row.singkatan}
+          </span>
+        ) : <span className="text-slate-300 text-xs">—</span>
       ),
     },
     {
@@ -138,15 +158,29 @@ export default function MajorsPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card>
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                <GraduationCap size={20} className="text-indigo-500" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-indigo-500/20 transition-all duration-500"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/30">
+                <GraduationCap size={22} className="text-white" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Program Studi</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Prodi</p>
                 <p className="text-2xl font-bold text-slate-800 mt-0.5">{majors.length}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500"></div>
+            <div className="flex items-center gap-4 relative z-10">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+                <Building2 size={20} className="text-white" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fakultas Aktif</p>
+                <p className="text-2xl font-bold text-slate-800 mt-0.5">{new Set(majors.map(m => m.faculty).filter(f => f && f !== '-')).size}</p>
               </div>
             </div>
           </Card>
@@ -177,6 +211,7 @@ export default function MajorsPage() {
               data={majors}
               loading={loadingMajors}
               emptyMessage="Belum ada data program studi."
+              getRowClassName={() => "hover:shadow-md hover:-translate-y-[2px] hover:bg-slate-50 transition-all duration-300 relative hover:z-20"}
             />
           </Card>
         </div>

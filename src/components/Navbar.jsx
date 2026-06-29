@@ -22,7 +22,7 @@ export default function Navbar({ onMenuClick }) {
   const title = pageTitles[pathname] || 'Admin Panel'
 
   return (
-    <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 z-10 flex-shrink-0">
+    <header className="h-16 bg-white border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 z-50 relative flex-shrink-0">
       {/* Left */}
       <div className="flex items-center gap-3">
         <button

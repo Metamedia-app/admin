@@ -3,12 +3,12 @@ import {
   Users, Plus, X, RefreshCw, MessageSquare,
   UserPlus, BookOpen, CalendarDays, Trash2, Search, Loader2, Eye, Upload
 } from 'lucide-react'
-import Card    from '../components/Card'
+import Card from '../components/Card'
 import * as XLSX from 'xlsx'
-import Table   from '../components/Table'
-import Button  from '../components/Button'
-import Modal   from '../components/Modal'
-import Badge   from '../components/Badge'
+import Table from '../components/Table'
+import Button from '../components/Button'
+import Modal from '../components/Modal'
+import Badge from '../components/Badge'
 import { useToast } from '../context/ToastContext'
 import { groupsApi, usersApi, chatSyncApi, subjectsApi, majorsApi } from '../services/api'
 
@@ -39,24 +39,43 @@ function extractMembers(data) {
   return []
 }
 
+function getAvatarProps(name) {
+  const colors = [
+    'from-blue-500 to-cyan-400 shadow-blue-500/30',
+    'from-violet-500 to-fuchsia-400 shadow-violet-500/30',
+    'from-emerald-500 to-teal-400 shadow-emerald-500/30',
+    'from-orange-500 to-amber-400 shadow-orange-500/30',
+    'from-pink-500 to-rose-400 shadow-pink-500/30'
+  ]
+  const cleanName = (name || 'GC').trim()
+  const words = cleanName.split(' ').filter(w => w.length > 0)
+  let initials = 'GC'
+  if (words.length >= 2) initials = (words[0][0] + words[1][0]).toUpperCase()
+  else if (words.length === 1) initials = cleanName.substring(0, 2).toUpperCase()
+  
+  const charCode = cleanName.charCodeAt(0) || 0
+  const color = colors[charCode % colors.length]
+  return { initials, color }
+}
+
 export default function GroupsPage() {
   const toast = useToast()
-  const [groups, setGroups]     = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [groups, setGroups] = useState([])
+  const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [selectedGroup, setSelectedGroup] = useState(null)
-  
+
   // Member Selector States
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [selectedUsers, setSelectedUsers] = useState([])
   const [isSearching, setIsSearching] = useState(false)
-  
+
   // View Members States
   const [viewingGroup, setViewingGroup] = useState(null)
   const [groupMembers, setGroupMembers] = useState([])
   const [loadingMembers, setLoadingMembers] = useState(false)
-  
+
   const [submitting, setSubmitting] = useState(false)
 
   // Create Group States
@@ -134,7 +153,7 @@ export default function GroupsPage() {
     }
   }, [toast])
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchGroups()
     fetchMajors()
     fetchSubjects()
@@ -219,7 +238,7 @@ export default function GroupsPage() {
       toast.error('Pilih minimal 1 mahasiswa.', { title: 'Belum Ada Pilihan' })
       return
     }
-    
+
     setSubmitting(true)
     try {
       const nims = selectedUsers.map(u => u.nim)
@@ -240,11 +259,11 @@ export default function GroupsPage() {
 
   const handleProcessBulk = async () => {
     if (!bulkInput.trim()) return
-    
+
     // Split by comma, newline, or space
     const nims = bulkInput.split(/[,\n\s]+/).filter(nim => nim.trim().length >= 3)
     const uniqueNims = [...new Set(nims)]
-    
+
     setIsBulkProcessing(true)
     const newUsers = []
 
@@ -257,10 +276,10 @@ export default function GroupsPage() {
           // Search for this specific NIM
           const data = await usersApi.search(nim.trim(), 1)
           const results = data.data?.users || data.users || []
-          
+
           // Find the exact NIM match in results
           const exactMatch = results.find(u => u.nim === nim.trim())
-          
+
           if (exactMatch) {
             newUsers.push(exactMatch)
           } else {
@@ -288,7 +307,7 @@ export default function GroupsPage() {
         setSelectedUsers(prev => [...prev, ...newUsers])
         toast.success(`Berhasil memproses ${newUsers.length} mahasiswa.`)
       }
-      
+
       setBulkInput('')
       setIsBulkMode(false)
     } finally {
@@ -311,7 +330,7 @@ export default function GroupsPage() {
 
   const handleKickMember = async (userId, userName) => {
     if (!confirm(`Keluarkan ${userName} dari grup ini?`)) return
-    
+
     try {
       await groupsApi.kickMember(viewingGroup.id, userId)
       toast.success(`${userName} berhasil dikeluarkan.`)
@@ -345,10 +364,10 @@ export default function GroupsPage() {
 
   const handleCreateProcessBulk = async () => {
     if (!createBulkInput.trim()) return
-    
+
     const nims = createBulkInput.split(/[,\n\s]+/).filter(nim => nim.trim().length >= 3)
     const uniqueNims = [...new Set(nims)]
-    
+
     setCreateIsBulkProcessing(true)
     const newUsers = []
 
@@ -360,7 +379,7 @@ export default function GroupsPage() {
           const data = await usersApi.search(nim.trim(), 1)
           const results = data.data?.users || data.users || []
           const exactMatch = results.find(u => u.nim === nim.trim())
-          
+
           if (exactMatch) {
             newUsers.push(exactMatch)
           } else {
@@ -387,7 +406,7 @@ export default function GroupsPage() {
         setCreateSelectedUsers(prev => [...prev, ...newUsers])
         toast.success(`Berhasil memproses ${newUsers.length} mahasiswa.`)
       }
-      
+
       setCreateBulkInput('')
       setCreateIsBulkMode(false)
     } finally {
@@ -397,7 +416,7 @@ export default function GroupsPage() {
 
   const handleCreateGroup = async (e) => {
     e.preventDefault()
-    
+
     if (createForm.subjectIndex === '') {
       toast.error('Pilih mata kuliah terlebih dahulu.', { title: 'Form Belum Lengkap' })
       return
@@ -429,7 +448,7 @@ export default function GroupsPage() {
         expires_at: new Date(createForm.expires_at).toISOString(),
         students: createSelectedUsers.map(u => u.nim)
       }
-      
+
       await chatSyncApi.sync(payload)
       toast.success(`Grup chat "${payload.subject_name}" berhasil dibuat.`, { title: 'Berhasil' })
       closeCreateModal()
@@ -483,7 +502,7 @@ export default function GroupsPage() {
       setPreviewData([])
       return
     }
-    
+
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
       toast.error('File harus berupa format Excel (.xlsx atau .xls)', { title: 'Format Salah' })
       setImportFile(null)
@@ -492,7 +511,7 @@ export default function GroupsPage() {
     }
 
     setImportFile(file)
-    
+
     const reader = new FileReader()
     reader.onload = (evt) => {
       try {
@@ -501,7 +520,7 @@ export default function GroupsPage() {
         const sheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[sheetName]
         const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
-        
+
         // Find the first row that has actual content (this will be our header)
         let headerRowIdx = -1
         for (let i = 0; i < rawRows.length; i++) {
@@ -514,14 +533,14 @@ export default function GroupsPage() {
 
         if (headerRowIdx !== -1) {
           const headers = rawRows[headerRowIdx].map(h => String(h || '').trim())
-          
+
           // Parse subsequent rows as objects
           const dataRows = []
           for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
             const row = rawRows[i]
             // Skip if row is completely empty
             if (!row || row.every(cell => cell === '' || cell === null || cell === undefined)) continue
-            
+
             const obj = {}
             headers.forEach((header, colIdx) => {
               if (header) {
@@ -635,15 +654,16 @@ export default function GroupsPage() {
       label: 'Nama Grup',
       render: (row) => {
         const name = row.name || row.subject_name || row.group_name || '-'
+        const avatar = getAvatarProps(name)
         return (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
-              <MessageSquare size={16} className="text-violet-500" />
+          <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${avatar.color} flex items-center justify-center flex-shrink-0 shadow-lg text-white font-bold text-sm tracking-widest`}>
+              {avatar.initials}
             </div>
             <div>
-              <p className="font-semibold text-slate-800">{name}</p>
+              <p className="font-bold text-slate-800">{name}</p>
               {(row.subject_code || row.code) && (
-                <span className="text-[10px] font-mono text-slate-400">
+                <span className="text-[10px] font-bold tracking-widest uppercase text-slate-400">
                   {row.subject_code || row.code}
                 </span>
               )}
@@ -656,8 +676,8 @@ export default function GroupsPage() {
       key: 'academic_year',
       label: 'Tahun Akademik',
       render: (row) => (
-        <span className="flex items-center gap-1.5 text-sm text-slate-600">
-          <CalendarDays size={13} className="text-slate-400" />
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/60 text-xs font-semibold text-slate-600 shadow-sm">
+          <CalendarDays size={12} className="text-primary-500" />
           {row.academic_year || '-'}
         </span>
       ),
@@ -668,10 +688,10 @@ export default function GroupsPage() {
       render: (row) => {
         const count = row.member_count ?? row.members_count ?? (Array.isArray(row.members) ? row.members.length : '-')
         return (
-          <div className="flex items-center gap-1.5">
-            <Users size={13} className="text-slate-400" />
-            <span className="text-sm font-semibold text-slate-700">{count}</span>
-          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50/50 border border-blue-100 text-xs font-bold text-blue-700 shadow-sm">
+            <Users size={12} className="text-blue-500" />
+            {count}
+          </span>
         )
       },
     },
@@ -694,7 +714,7 @@ export default function GroupsPage() {
       key: 'actions',
       label: 'Aksi',
       render: (row) => {
-        const id   = row._id || row.id || row.conversation_id
+        const id = row._id || row.id || row.conversation_id
         const name = row.name || row.subject_name || 'Grup'
         return (
           <div className="flex items-center gap-2">
@@ -730,7 +750,7 @@ export default function GroupsPage() {
       <div className="space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Grup Chat Matkul</h2>
+            <h2 className="text-xl font-bold text-slate-800">Grup Kuliah</h2>
             <p className="text-sm text-slate-500 mt-0.5">Lihat semua grup dan kelola anggotanya</p>
           </div>
           <div className="flex items-center gap-2">
@@ -753,6 +773,7 @@ export default function GroupsPage() {
             loading={loading}
             skeletonRows={5}
             emptyMessage="Belum ada grup chat yang aktif."
+            getRowClassName={() => "hover:shadow-md hover:-translate-y-[2px] hover:bg-slate-50 transition-all duration-300 relative hover:z-20"}
           />
           <div className="px-4 py-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
             <span>{groups.length} grup aktif</span>
@@ -774,7 +795,7 @@ export default function GroupsPage() {
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                 {isBulkMode ? 'Input Masal NIM' : 'Cari Mahasiswa'}
               </label>
-              <button 
+              <button
                 onClick={() => setIsBulkMode(!isBulkMode)}
                 className="text-[10px] font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded-lg transition-colors"
               >
@@ -808,10 +829,10 @@ export default function GroupsPage() {
                         className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
                       >
                         <div className="flex items-center gap-3">
-                          <img 
-                            src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama} 
-                            className="w-8 h-8 rounded-full object-cover border border-slate-100" 
-                            alt="" 
+                          <img
+                            src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama}
+                            className="w-8 h-8 rounded-full object-cover border border-slate-100"
+                            alt=""
                           />
                           <div className="text-left">
                             <p className="text-sm font-bold text-slate-800">{user.nama}</p>
@@ -832,9 +853,9 @@ export default function GroupsPage() {
                   onChange={e => setBulkInput(e.target.value)}
                   className="w-full h-32 p-4 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all font-mono"
                 />
-                <Button 
-                  variant="primary" 
-                  size="sm" 
+                <Button
+                  variant="primary"
+                  size="sm"
                   className="w-full"
                   loading={isBulkProcessing}
                   disabled={!bulkInput.trim() || isBulkProcessing}
@@ -853,7 +874,7 @@ export default function GroupsPage() {
                   <button onClick={() => setSelectedUsers([])} className="text-[10px] font-bold text-red-500 hover:underline">Hapus Semua</button>
                 )}
               </div>
-              
+
               <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                 {selectedUsers.length === 0 ? (
                   <div className="py-8 border-2 border-dashed border-slate-100 rounded-2xl flex flex-col items-center justify-center text-slate-300">
@@ -870,8 +891,8 @@ export default function GroupsPage() {
                           <p className="text-[10px] text-slate-400 font-mono">{user.nim}</p>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => toggleUserSelection(user)} 
+                      <button
+                        onClick={() => toggleUserSelection(user)}
                         className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-100"
                         title="Hapus dari daftar"
                       >
@@ -885,10 +906,10 @@ export default function GroupsPage() {
 
             <div className="flex gap-3 pt-2">
               <Button type="button" variant="secondary" className="flex-1" onClick={closeModal}>Batal</Button>
-              <Button 
-                type="button" 
-                variant="primary" 
-                className="flex-1" 
+              <Button
+                type="button"
+                variant="primary"
+                className="flex-1"
                 loading={submitting}
                 disabled={selectedUsers.length === 0}
                 onClick={handleAddMembers}
@@ -932,7 +953,7 @@ export default function GroupsPage() {
                           <p className="text-[10px] text-slate-400 font-mono">{uNim}</p>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => handleKickMember(uId, uName)}
                         className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-100"
                         title="Keluarkan dari grup"
@@ -944,7 +965,7 @@ export default function GroupsPage() {
                 })}
               </div>
             )}
-            
+
             <div className="mt-6">
               <Button type="button" variant="secondary" className="w-full" onClick={() => setViewingGroup(null)}>
                 Tutup
@@ -1153,7 +1174,7 @@ export default function GroupsPage() {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                   {createIsBulkMode ? 'Input Masal NIM Mahasiswa' : 'Cari Mahasiswa'}
                 </label>
-                <button 
+                <button
                   type="button"
                   onClick={() => setCreateIsBulkMode(!createIsBulkMode)}
                   className="text-[10px] font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1.5 px-2 py-1 bg-primary-50 rounded-lg transition-colors"
@@ -1189,10 +1210,10 @@ export default function GroupsPage() {
                           className="w-full px-4 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
                         >
                           <div className="flex items-center gap-3">
-                            <img 
-                              src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama} 
-                              className="w-8 h-8 rounded-full object-cover border border-slate-100" 
-                              alt="" 
+                            <img
+                              src={user.avatar_url || 'https://ui-avatars.com/api/?name=' + user.nama}
+                              className="w-8 h-8 rounded-full object-cover border border-slate-100"
+                              alt=""
                             />
                             <div className="text-left">
                               <p className="text-sm font-bold text-slate-800">{user.nama}</p>
@@ -1213,10 +1234,10 @@ export default function GroupsPage() {
                     onChange={e => setCreateBulkInput(e.target.value)}
                     className="w-full h-32 p-4 text-sm border border-slate-200 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary-200 transition-all font-mono"
                   />
-                  <Button 
+                  <Button
                     type="button"
-                    variant="primary" 
-                    size="sm" 
+                    variant="primary"
+                    size="sm"
                     className="w-full"
                     loading={createIsBulkProcessing}
                     disabled={!createBulkInput.trim() || createIsBulkProcessing}
@@ -1235,7 +1256,7 @@ export default function GroupsPage() {
                     <button type="button" onClick={() => setCreateSelectedUsers([])} className="text-[10px] font-bold text-red-500 hover:underline">Hapus Semua</button>
                   )}
                 </div>
-                
+
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                   {createSelectedUsers.length === 0 ? (
                     <div className="py-8 border-2 border-dashed border-slate-100 rounded-2xl flex flex-col items-center justify-center text-slate-300">
@@ -1252,9 +1273,9 @@ export default function GroupsPage() {
                             <p className="text-[10px] text-slate-400 font-mono">{user.nim}</p>
                           </div>
                         </div>
-                        <button 
+                        <button
                           type="button"
-                          onClick={() => toggleCreateUserSelection(user)} 
+                          onClick={() => toggleCreateUserSelection(user)}
                           className="p-1.5 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-100"
                           title="Hapus dari daftar"
                         >
@@ -1269,10 +1290,10 @@ export default function GroupsPage() {
 
             <div className="flex gap-3 pt-4 border-t border-slate-100">
               <Button type="button" variant="secondary" className="flex-1" onClick={closeCreateModal}>Batal</Button>
-              <Button 
-                type="submit" 
-                variant="primary" 
-                className="flex-1" 
+              <Button
+                type="submit"
+                variant="primary"
+                className="flex-1"
                 loading={createSubmitting}
               >
                 <Plus size={14} /> Buat Grup
@@ -1312,10 +1333,10 @@ export default function GroupsPage() {
               <Button type="button" variant="secondary" className="flex-1" onClick={closeImportModal}>
                 Batal
               </Button>
-              <Button 
-                type="submit" 
-                variant="primary" 
-                className="flex-1" 
+              <Button
+                type="submit"
+                variant="primary"
+                className="flex-1"
                 loading={importing}
                 disabled={!importFile || importing}
               >

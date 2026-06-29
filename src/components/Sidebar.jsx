@@ -14,20 +14,20 @@ import {
 
 const mainNavItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/users',     icon: Users,           label: 'Users' },
-  { to: '/reports',   icon: FileWarning,     label: 'Reports' },
-  { to: '/posts',     icon: FileText,        label: 'Posts' },
+  { to: '/users', icon: Users, label: 'Users' },
+  { to: '/reports', icon: FileWarning, label: 'Reports' },
+  { to: '/posts', icon: FileText, label: 'Posts' },
 ]
 
 const adminNavItems = [
-  { to: '/user-management', icon: UserCog,       label: 'Manajemen User' },
-  { to: '/majors',          icon: GraduationCap, label: 'Program Studi' },
+  { to: '/user-management', icon: UserCog, label: 'Manajemen User' },
+  { to: '/majors', icon: GraduationCap, label: 'Program Studi' },
 ]
 
 const matkulNavItems = [
-  { to: '/subjects',      icon: BookOpen,        label: 'Mata Kuliah' },
-  { to: '/groups',        icon: MessagesSquare,  label: 'Grup Chat' },
-  { to: '/group-reports', icon: FileText,        label: 'Laporan Tugas' },
+  { to: '/subjects', icon: BookOpen, label: 'Mata Kuliah' },
+  { to: '/groups', icon: MessagesSquare, label: 'Grup Kuliah' },
+  { to: '/group-reports', icon: FileText, label: 'Laporan Tugas' },
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -70,9 +70,9 @@ export default function Sidebar({ isOpen, onClose }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                  ${isActive
-                   ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
-                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                 }`
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                }`
               }
             >
               {({ isActive }) => (
@@ -98,9 +98,9 @@ export default function Sidebar({ isOpen, onClose }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                  ${isActive
-                   ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
-                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                 }`
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                }`
               }
             >
               {({ isActive }) => (
@@ -126,9 +126,9 @@ export default function Sidebar({ isOpen, onClose }) {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200
                  ${isActive
-                   ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
-                   : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
-                 }`
+                  ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 ring-1 ring-white/10'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
+                }`
               }
             >
               {({ isActive }) => (
