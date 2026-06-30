@@ -27,6 +27,7 @@ const adminNavItems = [
 const matkulNavItems = [
   { to: '/subjects', icon: BookOpen, label: 'Mata Kuliah' },
   { to: '/groups', icon: MessagesSquare, label: 'Grup Kuliah' },
+  { to: '/alumni-groups', icon: Users, label: 'Grup Alumni' },
   { to: '/group-reports', icon: FileText, label: 'Laporan Tugas' },
 ]
 

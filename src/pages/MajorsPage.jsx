@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { GraduationCap, Plus, Building2, Edit, RefreshCw } from 'lucide-react'
+import { GraduationCap, Plus, Building2, Edit, RefreshCw, Trash2 } from 'lucide-react'
 import Card    from '../components/Card'
 import Table   from '../components/Table'
 import Button  from '../components/Button'
 import Modal   from '../components/Modal'
+import ConfirmModal from '../components/ConfirmModal'
 import { useToast } from '../context/ToastContext'
 import { majorsApi } from '../services/api'
 
@@ -31,6 +32,10 @@ export default function MajorsPage() {
   const [majorForm, setMajorForm] = useState({ name: '', faculty: '', code_prodi: '', singkatan: '' })
   const [submittingMajor, setSubmittingMajor] = useState(false)
   const [editingMajor, setEditingMajor] = useState(null)
+  
+  // State for Delete
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchMajors = useCallback(async () => {
     setLoadingMajors(true)
@@ -71,6 +76,22 @@ export default function MajorsPage() {
       toast.error(err.message, { title: editingMajor ? 'Gagal Memperbarui Jurusan' : 'Gagal Menambah Jurusan' })
     } finally {
       setSubmittingMajor(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      const id = deleteTarget._id || deleteTarget.id
+      await majorsApi.delete(id)
+      toast.success(`Program studi "${deleteTarget.name}" berhasil dihapus.`, { title: 'Dihapus' })
+      setDeleteTarget(null)
+      fetchMajors()
+    } catch (err) {
+      toast.error(err.message, { title: 'Gagal Menghapus' })
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -126,22 +147,31 @@ export default function MajorsPage() {
       key: 'actions',
       label: 'Aksi',
       render: (row) => (
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            setEditingMajor(row)
-            setMajorForm({
-              name: row.name || '',
-              faculty: row.faculty || '',
-              code_prodi: row.code_prodi || '',
-              singkatan: row.singkatan || ''
-            })
-            setShowMajorModal(true)
-          }}
-        >
-          <Edit size={13} className="mr-1" /> Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              setEditingMajor(row)
+              setMajorForm({
+                name: row.name || '',
+                faculty: row.faculty || '',
+                code_prodi: row.code_prodi || '',
+                singkatan: row.singkatan || ''
+              })
+              setShowMajorModal(true)
+            }}
+          >
+            <Edit size={13} className="mr-1" /> Edit
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => setDeleteTarget(row)}
+          >
+            <Trash2 size={13} className="mr-1" /> Hapus
+          </Button>
+        </div>
       ),
     },
   ]
@@ -295,6 +325,19 @@ export default function MajorsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Modal Hapus */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title="Hapus Program Studi"
+        message={`Apakah Anda yakin ingin menghapus program studi "${deleteTarget?.name}"? Data yang sudah dihapus tidak dapat dikembalikan.`}
+        confirmText="Ya, Hapus"
+        cancelText="Batal"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        isLoading={isDeleting}
+        variant="danger"
+      />
     </>
   )
 }

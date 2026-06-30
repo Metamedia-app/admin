@@ -9,6 +9,7 @@ const pageTitles = {
   '/users':     'User Management',
   '/reports':   'Reports',
   '/posts':     'Posts Management',
+  '/alumni-groups': 'Komunitas Alumni',
 }
 
 export default function Navbar({ onMenuClick }) {

@@ -186,6 +186,22 @@ export const majorsApi = {
 
   /** Edit program studi */
   update: (id, body) => http.put(`/api/v1/admin/majors/${id}`, body),
+
+  /** Hapus program studi */
+  delete: (id) => http.del(`/api/v1/admin/majors/${id}`),
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 🏛️ Communities
+// GET   /api/v1/admin/communities/alumni
+// PATCH /api/v1/chat/communities/:id
+// ═════════════════════════════════════════════════════════════════════════════
+export const communitiesApi = {
+  /** Ambil semua komunitas alumni */
+  getAlumni: () => http.get('/api/v1/admin/communities/alumni'),
+
+  /** Edit komunitas (menggunakan FormData karena ada upload gambar) */
+  update: (id, formData) => request(`/api/v1/chat/communities/${id}`, { method: 'PATCH', body: formData }),
 }
 
 export const reportsApi = {
